@@ -1,0 +1,238 @@
+# ── SPD Boss Daemon ────────────────────────────────────────────────────────────
+# Role: playwright-gherkin-testing-gatekeeper
+# Branch: staging (reads) → gate recommendation (writes to Supabase)
+# Paired with: Producer human role
+#
+# What it does:
+#   Runs Playwright tests against the staging deployment (or local staging Docker
+#   stack if available). Reads features/*.feature to understand expected behavior.
+#   Generates screenshots of each scenario. Posts a BossDaemonReport to the
+#   SPD conductor, which the web-dashboard displays as gate status.
+#
+# Trigger logic:
+#   • On push to staging (runs Playwright after design daemon commit)
+#   • After daemon-design.yml completes (via workflow_run trigger)
+#   • Manual dispatch
+#   • On gate check request from web-dashboard (workflow_dispatch)
+#
+# The boss daemon never commits code. It only produces reports and gate signals.
+# A "PASS" gate recommendation enables the staging→prod merge in the dashboard.
+#
+# Required GitHub repo variables:
+#   SPD_PROJECT_SLUG, SUPABASE_URL, SUPABASE_ANON_KEY
+#   BOSS_DAEMON_TIER, STAGING_URL (the Cloudflare Pages staging URL)
+#   SPD_CONDUCTOR_URL (the central conductor server URL)
+#
+# Required GitHub repo secrets:
+#   ANTHROPIC_API_KEY
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: "🎭 Boss Daemon (Playwright gate)"
+
+on:
+  workflow_run:
+    workflows: ["🎨 Design Daemon (staging branch)"]
+    types: [completed]
+    branches: [staging]
+  push:
+    branches: [staging]
+    paths:
+      - "features/**"
+      - "tests/**"
+      - "playwright.config.*"
+  workflow_dispatch:
+    inputs:
+      force_tier:
+        description: "Override daemon tier (spark/craft/deep)"
+        required: false
+        default: ""
+      target_url:
+        description: "Override test target URL"
+        required: false
+        default: ""
+
+jobs:
+  boss-daemon:
+    name: "Playwright gate check"
+    runs-on: self-hosted
+    timeout-minutes: 45
+
+    steps:
+      - name: Check daemon tier
+        id: tier_check
+        env:
+          TIER: ${{ inputs.force_tier || vars.BOSS_DAEMON_TIER || 'craft' }}
+        run: |
+          if [ "$TIER" = "idle" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "model=$(
+              case $TIER in
+                spark) echo 'claude-haiku-4-5' ;;
+                deep)  echo 'claude-opus-4-8' ;;
+                *)     echo 'claude-sonnet-4-6' ;;
+              esac
+            )" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check human yield signal
+        id: human_check
+        if: steps.tier_check.outputs.skip == 'false'
+        run: |
+          result=$(curl -sf \
+            "${{ vars.SUPABASE_URL }}/rest/v1/projects?slug=eq.${{ vars.SPD_PROJECT_SLUG }}&select=human_active_at&limit=1" \
+            -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}" \
+            -H "Accept: application/json" || echo '[]')
+          active=$(echo "$result" | jq -r '.[0].human_active_at // "null"')
+          if [ "$active" != "null" ] && [ -n "$active" ]; then
+            echo "yielding=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yielding=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout staging
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      # ── Install Playwright browsers on first run (cached after) ─────────────
+      - name: Setup Playwright
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        run: |
+          if command -v bun &> /dev/null; then
+            bun install --frozen-lockfile
+          else
+            npm ci
+          fi
+          npx playwright install chromium --with-deps
+
+      # ── Run Playwright tests ────────────────────────────────────────────────
+      - name: Run Playwright tests
+        id: pw_run
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          BASE_URL: ${{ inputs.target_url || vars.STAGING_URL }}
+          CI: "true"
+        run: |
+          set +e
+          npx playwright test \
+            --reporter=json \
+            --output=playwright-results/ 2>&1 | tee pw-output.txt
+          PW_EXIT=$?
+          echo "pw_exit=$PW_EXIT" >> "$GITHUB_OUTPUT"
+          set -e
+
+          # Extract pass/fail counts from JSON report
+          if [ -f "test-results/results.json" ]; then
+            PASSED=$(jq '.suites | .. | objects | .specs? | arrays | .[].tests | .[].results | .[].status' \
+              test-results/results.json 2>/dev/null | grep -c '"passed"' || echo 0)
+            FAILED=$(jq '.suites | .. | objects | .specs? | arrays | .[].tests | .[].results | .[].status' \
+              test-results/results.json 2>/dev/null | grep -c '"failed"' || echo 0)
+          else
+            PASSED=0
+            FAILED=0
+          fi
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+
+      # ── Upload Playwright artifacts ─────────────────────────────────────────
+      - name: Upload test artifacts
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            playwright-results/
+            playwright-report/
+          retention-days: 14
+
+      # ── Claude analysis of test results ────────────────────────────────────
+      - name: Run boss daemon analysis
+        id: claude_analysis
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ steps.tier_check.outputs.model }}
+          PW_EXIT: ${{ steps.pw_run.outputs.pw_exit }}
+          PASSED: ${{ steps.pw_run.outputs.passed }}
+          FAILED: ${{ steps.pw_run.outputs.failed }}
+        run: |
+          install -g @anthropic-ai/claude-code 2>/dev/null || true
+
+          GATE_RESULT=$(claude --model "$CLAUDE_MODEL" \
+            --allowedTools "Read,Glob,Grep" \
+            --print \
+            "You are the SPD boss daemon (playwright-gherkin-testing-gatekeeper) for project '${{ vars.SPD_PROJECT_SLUG }}'.
+
+          Playwright just ran with these results:
+          - Exit code: $PW_EXIT (0 = all passed)
+          - Tests passed: $PASSED
+          - Tests failed: $FAILED
+
+          Your task:
+          1. Read features/*.feature to understand what scenarios SHOULD pass
+          2. Read playwright-results/ to see what failed and why
+          3. Read pw-output.txt for the full test output
+          4. Determine if failures are blocking (would break production) or minor (cosmetic/flaky)
+          5. Output ONLY a JSON object in this exact format (no other text):
+          {
+            \"gate_recommendation\": \"PASS\" | \"FAIL\" | \"WARN\",
+            \"summary\": \"one sentence description\",
+            \"blocking_failures\": [],
+            \"warnings\": [],
+            \"cost_pennies\": 0
+          }
+
+          PASS = all critical user flows work, staging can proceed to prod gate
+          WARN = minor issues, human should review before promoting
+          FAIL = critical flows broken, do not promote to prod")
+
+          echo "gate_result=$GATE_RESULT" >> "$GITHUB_OUTPUT"
+
+      # ── Post gate report to conductor ───────────────────────────────────────
+      - name: Post gate report to SPD conductor
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          SPD_LEDGER_URL: ${{ vars.SPD_CONDUCTOR_URL }}
+          GATE_RESULT: ${{ steps.claude_analysis.outputs.gate_result }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          # Extract gate recommendation
+          GATE=$(echo "$GATE_RESULT" | jq -r '.gate_recommendation // "FAIL"' 2>/dev/null || echo "FAIL")
+          SUMMARY=$(echo "$GATE_RESULT" | jq -r '.summary // "Playwright run complete"' 2>/dev/null || echo "")
+
+          echo "Gate recommendation: $GATE — $SUMMARY"
+
+          # Post to conductor (which updates Supabase gate_status)
+          curl -sf -X POST "$SPD_LEDGER_URL/ledger/gate-report" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"project_slug\": \"${{ vars.SPD_PROJECT_SLUG }}\",
+              \"daemon_role\": \"boss\",
+              \"tier\": \"${{ steps.tier_check.outputs.model }}\",
+              \"run_id\": \"$RUN_ID\",
+              \"status\": \"${{ job.status }}\",
+              \"gate_recommendation\": \"$GATE\",
+              \"report\": $GATE_RESULT,
+              \"artifact_run_id\": \"$RUN_ID\"
+            }" || echo "Warning: failed to post to conductor ledger"
+
+          # Fail the workflow if gate says FAIL (blocks merge in GitHub)
+          if [ "$GATE" = "FAIL" ]; then
+            echo "::error::Boss daemon gate: FAIL — $SUMMARY"
+            exit 1
+          fi

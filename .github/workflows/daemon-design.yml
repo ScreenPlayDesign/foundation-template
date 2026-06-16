@@ -1,0 +1,158 @@
+# ── SPD Design Daemon ──────────────────────────────────────────────────────────
+# Role: theme-graphics-UI-frontend-flow-designer
+# Branch: staging
+# Paired with: Designer human role
+#
+# What it does:
+#   Reads the staging branch, reviews React components and Tailwind classes,
+#   ensures design tokens are used consistently, checks that UI flows match
+#   the Gherkin scenarios in features/, and makes visual/UX improvements.
+#
+# Trigger logic:
+#   • On push to staging (after dev→staging promotion)
+#   • Manual dispatch (Director's Chair "▶ Run" button)
+#
+# Required GitHub repo variables:
+#   SPD_PROJECT_SLUG, SUPABASE_URL, SUPABASE_ANON_KEY, DESIGN_DAEMON_TIER
+#
+# Required GitHub repo secrets:
+#   ANTHROPIC_API_KEY
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: "🎨 Design Daemon (staging branch)"
+
+on:
+  push:
+    branches: [staging]
+    paths:
+      - "src/**"
+      - "features/**"
+      - "tailwind.config.*"
+      - "index.css"
+  workflow_dispatch:
+    inputs:
+      force_tier:
+        description: "Override daemon tier (spark/craft/deep)"
+        required: false
+        default: ""
+
+jobs:
+  design-daemon:
+    name: "UI / theme / flow review"
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    steps:
+      - name: Check daemon tier
+        id: tier_check
+        env:
+          TIER: ${{ inputs.force_tier || vars.DESIGN_DAEMON_TIER || 'craft' }}
+        run: |
+          if [ "$TIER" = "idle" ]; then
+            echo "Daemon tier is idle — skipping run"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "model=$(
+              case $TIER in
+                spark) echo 'claude-haiku-4-5' ;;
+                deep)  echo 'claude-opus-4-8' ;;
+                *)     echo 'claude-sonnet-4-6' ;;
+              esac
+            )" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check human yield signal
+        id: human_check
+        if: steps.tier_check.outputs.skip == 'false'
+        run: |
+          result=$(curl -sf \
+            "${{ vars.SUPABASE_URL }}/rest/v1/projects?slug=eq.${{ vars.SPD_PROJECT_SLUG }}&select=human_active_at&limit=1" \
+            -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}" \
+            -H "Accept: application/json" || echo '[]')
+          active=$(echo "$result" | jq -r '.[0].human_active_at // "null"')
+          if [ "$active" != "null" ] && [ -n "$active" ]; then
+            echo "Human is active — daemon yielding"
+            echo "yielding=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yielding=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout staging
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install claude CLI
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        run: |
+          if ! command -v claude &> /dev/null; then
+            npm install -g @anthropic-ai/claude-code
+          fi
+
+      - name: Run design daemon
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ steps.tier_check.outputs.model }}
+        run: |
+          claude --model "$CLAUDE_MODEL" \
+            --allowedTools "Read,Edit,Glob,Grep" \
+            --print \
+            "You are the SPD design daemon (theme-graphics-UI-frontend-flow-designer) for project '${{ vars.SPD_PROJECT_SLUG }}'.
+
+          Your responsibilities on the staging branch:
+          1. Read features/*.feature — understand what user flows are supposed to look like
+          2. Read src/components/ — check for visual consistency and Tailwind best practices
+          3. Check that Tailwind 4 CSS variables (--color-*, --font-*) are used consistently
+          4. Ensure all interactive elements have proper hover, focus, and disabled states
+          5. Check for accessibility basics: aria labels on icon buttons, alt text on images
+          6. Verify that the UI flows match the Given/When/Then scenarios in the feature files
+          7. Make targeted improvements — do not redesign from scratch
+          8. Do NOT touch supabase/, migrations/, or backend API code
+
+          Style constraints for this project:
+          - Use Tailwind 4 utility classes only (no inline styles)
+          - Dark mode: prefer CSS variable approach (var(--color-surface), etc.)
+          - React 19: use server components where appropriate
+
+          If everything looks good, make no changes."
+
+      - name: Commit daemon changes
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        run: |
+          git config user.email "daemon-design@screenplaydesign.com"
+          git config user.name "SPD Design Daemon"
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            git add -A
+            git commit -m "daemon(design): UI/theme/flow review [skip ci]"
+            git push origin staging
+            echo "✓ Design daemon committed changes"
+          else
+            echo "✓ Design daemon — no changes needed"
+          fi
+
+      - name: Report to SPD ledger
+        if: always()
+        env:
+          SPD_LEDGER_URL: ${{ vars.SPD_CONDUCTOR_URL }}
+        run: |
+          curl -sf -X POST "$SPD_LEDGER_URL/ledger/daemon-run" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"project_slug\": \"${{ vars.SPD_PROJECT_SLUG }}\",
+              \"daemon_role\": \"design\",
+              \"tier\": \"${{ steps.tier_check.outputs.model }}\",
+              \"run_id\": \"${{ github.run_id }}\",
+              \"status\": \"${{ job.status }}\"
+            }" || true

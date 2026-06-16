@@ -1,0 +1,181 @@
+# ── SPD Data Daemon ────────────────────────────────────────────────────────────
+# Role: business-data-backend-SQL-accountant
+# Branch: dev
+# Paired with: Developer human role
+#
+# What it does:
+#   Reads the dev branch, reviews supabase/migrations/, checks that RLS policies
+#   match shared-contracts.ts type definitions, fixes SQL/TypeScript mismatches,
+#   and ensures the data model stays coherent as the Developer makes changes.
+#
+# Trigger logic:
+#   • On every push to dev
+#   • Nightly at 3am UTC (catches drift from accumulated changes)
+#   • Manual dispatch (Director's Chair "▶ Run" button)
+#
+# Human yield:
+#   Checks `human_active_at` in Supabase. If non-null, the human is in the
+#   driver's seat — daemon exits cleanly without making changes.
+#
+# Daemon tier → Claude model mapping:
+#   idle  → skipped entirely (workflow exits early)
+#   spark → claude-haiku-4-5     (quick review, light fixes)
+#   craft → claude-sonnet-4-6    (default, handles most work)
+#   deep  → claude-opus-4-8      (complex schema refactors)
+#
+# Required GitHub repo variables (Settings → Variables → Actions):
+#   SPD_PROJECT_SLUG     e.g. "fastnacht-lancaster"
+#   SUPABASE_URL         e.g. "https://abc123.supabase.co"
+#   SUPABASE_ANON_KEY    public anon key (safe to store as var, not secret)
+#   DATA_DAEMON_TIER     idle | spark | craft | deep
+#
+# Required GitHub repo secrets (Settings → Secrets → Actions):
+#   ANTHROPIC_API_KEY    your Anthropic API key
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: "🤖 Data Daemon (dev branch)"
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "supabase/**"
+      - "shared-contracts.ts"
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
+  schedule:
+    - cron: "0 3 * * *"   # nightly 3am UTC
+  workflow_dispatch:
+    inputs:
+      force_tier:
+        description: "Override daemon tier (spark/craft/deep)"
+        required: false
+        default: ""
+
+jobs:
+  data-daemon:
+    name: "SQL / RLS review"
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    steps:
+      # ── 0. Skip if daemon is idle ──────────────────────────────────────────
+      - name: Check daemon tier
+        id: tier_check
+        env:
+          TIER: ${{ inputs.force_tier || vars.DATA_DAEMON_TIER || 'craft' }}
+        run: |
+          if [ "$TIER" = "idle" ]; then
+            echo "Daemon tier is idle — skipping run"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "model=$(
+              case $TIER in
+                spark) echo 'claude-haiku-4-5' ;;
+                deep)  echo 'claude-opus-4-8' ;;
+                *)     echo 'claude-sonnet-4-6' ;;
+              esac
+            )" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 1. Check human_active_at (yield if human is in the driver's seat) ─
+      - name: Check human yield signal
+        id: human_check
+        if: steps.tier_check.outputs.skip == 'false'
+        run: |
+          result=$(curl -sf \
+            "${{ vars.SUPABASE_URL }}/rest/v1/projects?slug=eq.${{ vars.SPD_PROJECT_SLUG }}&select=human_active_at&limit=1" \
+            -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}" \
+            -H "Accept: application/json" || echo '[]')
+          active=$(echo "$result" | jq -r '.[0].human_active_at // "null"')
+          if [ "$active" != "null" ] && [ -n "$active" ]; then
+            echo "Human is active (human_active_at=$active) — daemon yielding"
+            echo "yielding=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yielding=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── 2. Checkout dev branch ─────────────────────────────────────────────
+      - name: Checkout dev
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 3. Install claude CLI ──────────────────────────────────────────────
+      - name: Install claude CLI
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        run: |
+          if ! command -v claude &> /dev/null; then
+            npm install -g @anthropic-ai/claude-code
+          fi
+
+      # ── 4. Run data daemon ─────────────────────────────────────────────────
+      - name: Run data daemon
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ steps.tier_check.outputs.model }}
+        run: |
+          claude --model "$CLAUDE_MODEL" \
+            --allowedTools "Read,Edit,Bash,Glob,Grep" \
+            --print \
+            "You are the SPD data daemon (business-data-backend-SQL-accountant) for project '${{ vars.SPD_PROJECT_SLUG }}'.
+
+          Your responsibilities on the dev branch:
+          1. Read shared-contracts.ts — understand the canonical TypeScript types
+          2. Read supabase/migrations/*.sql — check for consistency with those types
+          3. Verify RLS policies cover all tables referenced in the TypeScript interfaces
+          4. Check that enum values in SQL match SCREAMING_SNAKE_CASE enums in shared-contracts.ts
+          5. Fix any mismatches by editing the appropriate migration or creating a new one in supabase/migrations/
+          6. Do NOT touch UI files (src/components/, src/pages/) — stay in the data layer
+          7. Do NOT change .env files or secrets
+          8. Keep your changes minimal and targeted — prefer surgical fixes over rewrites
+
+          If everything looks good, make no changes and exit cleanly.
+          If you make changes, ensure they are coherent and self-consistent."
+
+      # ── 5. Commit any changes ─────────────────────────────────────────────
+      - name: Commit daemon changes
+        if: |
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        run: |
+          git config user.email "daemon-data@screenplaydesign.com"
+          git config user.name "SPD Data Daemon"
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            git add -A
+            git commit -m "daemon(data): automated schema/RLS review [skip ci]"
+            git push origin dev
+            echo "✓ Data daemon committed changes"
+          else
+            echo "✓ Data daemon — no changes needed"
+          fi
+
+      # ── 6. Report cost to SPD ledger ──────────────────────────────────────
+      - name: Report to SPD ledger
+        if: |
+          always() &&
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
+        env:
+          SPD_LEDGER_URL: ${{ vars.SPD_CONDUCTOR_URL }}
+        run: |
+          # Post run metadata to conductor for cost tracking
+          curl -sf -X POST "$SPD_LEDGER_URL/ledger/daemon-run" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"project_slug\": \"${{ vars.SPD_PROJECT_SLUG }}\",
+              \"daemon_role\": \"data\",
+              \"tier\": \"${{ steps.tier_check.outputs.model }}\",
+              \"run_id\": \"${{ github.run_id }}\",
+              \"status\": \"${{ job.status }}\"
+            }" || true   # never fail the workflow on ledger errors

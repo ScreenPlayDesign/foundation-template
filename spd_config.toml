@@ -1,0 +1,63 @@
+# spd_config.toml — SPD project configuration
+#
+# This IS an SPD-project: it follows the strict dev → staging → prod cycle,
+# managed by the `spd` CLI and the ScreenPlayDesign dashboard.
+# Values in <angle brackets> are filled by provisioning at clone time.
+
+[app]
+name         = "spd-app-foundation-template"
+display_name = "SPD Event App"
+description  = "Event platform built on ScreenPlayDesign"
+version      = "0.1.0"
+
+[app.stack]
+frontend = "react@19"
+bundler  = "vite@8"
+styling  = "tailwind@4.3"
+backend  = "supabase"
+runtime  = "bun"
+testing  = "playwright"
+pwa      = true
+
+[paths]
+app        = "."
+src        = "src"
+migrations = "supabase/migrations"
+tests      = "tests"
+features   = "tests/features"
+ci         = ".github/workflows"
+
+[env.dev]
+url = "http://localhost:5173"
+
+[env.staging]
+url = "https://<project>-staging.pages.dev"
+
+[env.prod]
+url = "https://<project>.pages.dev"
+
+[github]
+org  = "ScreenPlayDesign"
+repo = "<project>"
+
+[supabase]
+staging_ref = "<filled-by-provisioning>"
+prod_ref    = "<filled-by-provisioning>"
+
+[cloudflare]
+pages_project = "<project>"
+
+# ── Docker dev-container settings ────────────────────────────────────────────
+# Used by `spd env` to compute LOCAL_URL correctly regardless of where the
+# spd CLI is running (host shim vs inside the Docker container network).
+#
+#   On host:  LOCAL_URL = http://localhost:{app_port}
+#   In Docker: LOCAL_URL = http://{service_name}:{app_port}  (Docker DNS)
+#
+# APP_PORT in .env.local overrides app_port when running multiple projects.
+[docker]
+app_port           = 5173
+service_name       = "app"
+container_name     = "${COMPOSE_PROJECT_NAME:-spd-project}-app"
+supabase_url_local = "http://supabase-kong:8000"
+supabase_url_host  = "http://localhost:54321"
