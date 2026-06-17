@@ -25,10 +25,8 @@ on:
   push:
     branches: [staging]
     paths:
-      - "src/**"
-      - "features/**"
-      - "tailwind.config.*"
-      - "index.css"
+      - "src/**"               # components, src/**/*.css (Tailwind 4.3 @theme lives here)
+      - "tests/features/**"    # Gherkin scenes the UI must satisfy
   workflow_dispatch:
     inputs:
       force_tier:
@@ -110,7 +108,7 @@ jobs:
             "You are the SPD design daemon (theme-graphics-UI-frontend-flow-designer) for project '${{ vars.SPD_PROJECT_SLUG }}'.
 
           Your responsibilities on the staging branch:
-          1. Read features/*.feature — understand what user flows are supposed to look like
+          1. Read tests/features/*.feature — understand what user flows are supposed to look like
           2. Read src/components/ — check for visual consistency and Tailwind best practices
           3. Check that Tailwind 4 CSS variables (--color-*, --font-*) are used consistently
           4. Ensure all interactive elements have proper hover, focus, and disabled states
@@ -143,7 +141,10 @@ jobs:
           fi
 
       - name: Report to SPD ledger
-        if: always()
+        if: |
+          always() &&
+          steps.tier_check.outputs.skip == 'false' &&
+          steps.human_check.outputs.yielding == 'false'
         env:
           SPD_API_URL:   ${{ vars.SPD_API_URL }}
           SPD_API_TOKEN: ${{ secrets.SPD_API_TOKEN }}
@@ -156,5 +157,6 @@ jobs:
               \"daemon_role\": \"design\",
               \"tier\": \"${{ steps.tier_check.outputs.model }}\",
               \"run_id\": \"${{ github.run_id }}\",
-              \"status\": \"${{ job.status }}\"
+              \"status\": \"${{ job.status }}\",
+              \"branch\": \"staging\"
             }" || true

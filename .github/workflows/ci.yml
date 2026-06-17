@@ -1,6 +1,6 @@
 # ci.yml — SPD pipeline: typecheck + Gherkin-backed Playwright on every push
-# to a pipeline branch. Results flow back to the dashboard via the
-# workflow_run webhook (spd-github-app → project_branches.ci_status).
+# to a pipeline branch. Results flow back to the dashboard via the serverless
+# `github-webhook` Supabase edge function → project_branches.ci_status.
 name: ci
 on:
   push:

@@ -55,6 +55,10 @@ jobs:
   boss-daemon:
     name: "Playwright gate check"
     runs-on: ubuntu-latest      # serverless — GitHub-hosted (no Hetzner VPS)
+    # Run INSIDE Playwright's own image: Chromium + all OS libs are PRE-installed,
+    # so CI never spends minutes on `playwright install`. Pin the tag to the
+    # @playwright/test version for local↔CI parity.
+    container: mcr.microsoft.com/playwright:v1.49.0-jammy
     timeout-minutes: 45
 
     steps:
@@ -80,6 +84,7 @@ jobs:
         id: human_check
         if: steps.tier_check.outputs.skip == 'false'
         run: |
+          command -v jq >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq jq) >/dev/null 2>&1
           result=$(curl -sf \
             "${{ vars.SUPABASE_URL }}/rest/v1/projects?slug=eq.${{ vars.SPD_PROJECT_SLUG }}&select=human_active_at&limit=1" \
             -H "apikey: ${{ vars.SUPABASE_ANON_KEY }}" \
@@ -105,12 +110,10 @@ jobs:
           steps.tier_check.outputs.skip == 'false' &&
           steps.human_check.outputs.yielding == 'false'
         run: |
-          if command -v bun &> /dev/null; then
-            bun install --frozen-lockfile
-          else
-            npm ci
-          fi
-          npx playwright install chromium --with-deps
+          command -v bun >/dev/null 2>&1 || npm install -g bun
+          bun install --frozen-lockfile
+          # Browsers + OS libs are PRE-installed in the mcr.microsoft.com/playwright
+          # container image — no `playwright install` step needed (saves CI minutes).
 
       # ── Run Playwright tests ────────────────────────────────────────────────
       - name: Run Playwright tests

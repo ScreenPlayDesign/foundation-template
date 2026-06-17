@@ -179,5 +179,6 @@ jobs:
               \"daemon_role\": \"data\",
               \"tier\": \"${{ steps.tier_check.outputs.model }}\",
               \"run_id\": \"${{ github.run_id }}\",
-              \"status\": \"${{ job.status }}\"
+              \"status\": \"${{ job.status }}\",
+              \"branch\": \"dev\"
             }" || true   # never fail the workflow on ledger errors
