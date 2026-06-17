@@ -16,15 +16,15 @@
 #   • On gate check request from web-dashboard (workflow_dispatch)
 #
 # The boss daemon never commits code. It only produces reports and gate signals.
-# A "PASS" gate recommendation enables the staging→prod merge in the dashboard.
+# An "approve" gate recommendation enables the staging→prod merge in the dashboard.
 #
-# Required GitHub repo variables:
+# Required GitHub variables (org-level recommended):
 #   SPD_PROJECT_SLUG, SUPABASE_URL, SUPABASE_ANON_KEY
 #   BOSS_DAEMON_TIER, STAGING_URL (the Cloudflare Pages staging URL)
-#   SPD_CONDUCTOR_URL (the central conductor server URL)
+#   SPD_API_URL (cli-api edge function, e.g. https://screenplaydesign.com/api/cli)
 #
-# Required GitHub repo secrets:
-#   ANTHROPIC_API_KEY
+# Required GitHub secrets (org-level recommended):
+#   ANTHROPIC_API_KEY, SPD_API_TOKEN (an spd_ admin token)
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: "🎭 Boss Daemon (Playwright gate)"
@@ -37,8 +37,8 @@ on:
   push:
     branches: [staging]
     paths:
-      - "features/**"
-      - "tests/**"
+      - "tests/features/**"
+      - "tests/specs/**"
       - "playwright.config.*"
   workflow_dispatch:
     inputs:
@@ -54,7 +54,7 @@ on:
 jobs:
   boss-daemon:
     name: "Playwright gate check"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest      # serverless — GitHub-hosted (no Hetzner VPS)
     timeout-minutes: 45
 
     steps:
@@ -182,22 +182,22 @@ jobs:
           - Tests failed: $FAILED
 
           Your task:
-          1. Read features/*.feature to understand what scenarios SHOULD pass
+          1. Read tests/features/*.feature to understand what scenarios SHOULD pass
           2. Read playwright-results/ to see what failed and why
           3. Read pw-output.txt for the full test output
           4. Determine if failures are blocking (would break production) or minor (cosmetic/flaky)
           5. Output ONLY a JSON object in this exact format (no other text):
           {
-            \"gate_recommendation\": \"PASS\" | \"FAIL\" | \"WARN\",
+            \"gate_recommendation\": \"approve\" | \"reject\" | \"needs_review\",
             \"summary\": \"one sentence description\",
             \"blocking_failures\": [],
             \"warnings\": [],
             \"cost_pennies\": 0
           }
 
-          PASS = all critical user flows work, staging can proceed to prod gate
-          WARN = minor issues, human should review before promoting
-          FAIL = critical flows broken, do not promote to prod")
+          approve      = all critical user flows work, staging can proceed to prod gate
+          needs_review = minor issues, human should review before promoting
+          reject       = critical flows broken, do not promote to prod")
 
           echo "gate_result=$GATE_RESULT" >> "$GITHUB_OUTPUT"
 
@@ -207,32 +207,31 @@ jobs:
           steps.tier_check.outputs.skip == 'false' &&
           steps.human_check.outputs.yielding == 'false'
         env:
-          SPD_LEDGER_URL: ${{ vars.SPD_CONDUCTOR_URL }}
+          SPD_API_URL:   ${{ vars.SPD_API_URL }}
+          SPD_API_TOKEN: ${{ secrets.SPD_API_TOKEN }}
           GATE_RESULT: ${{ steps.claude_analysis.outputs.gate_result }}
           RUN_ID: ${{ github.run_id }}
         run: |
           # Extract gate recommendation
-          GATE=$(echo "$GATE_RESULT" | jq -r '.gate_recommendation // "FAIL"' 2>/dev/null || echo "FAIL")
+          GATE=$(echo "$GATE_RESULT" | jq -r '.gate_recommendation // "reject"' 2>/dev/null || echo "reject")
           SUMMARY=$(echo "$GATE_RESULT" | jq -r '.summary // "Playwright run complete"' 2>/dev/null || echo "")
 
           echo "Gate recommendation: $GATE — $SUMMARY"
 
-          # Post to conductor (which updates Supabase gate_status)
-          curl -sf -X POST "$SPD_LEDGER_URL/ledger/gate-report" \
+          # Post to the cli-api edge function (serverless; record_gate_report RPC)
+          curl -sf -X POST "$SPD_API_URL/gate-report" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SPD_API_TOKEN" \
             -d "{
               \"project_slug\": \"${{ vars.SPD_PROJECT_SLUG }}\",
-              \"daemon_role\": \"boss\",
-              \"tier\": \"${{ steps.tier_check.outputs.model }}\",
+              \"branch\": \"staging\",
               \"run_id\": \"$RUN_ID\",
-              \"status\": \"${{ job.status }}\",
               \"gate_recommendation\": \"$GATE\",
-              \"report\": $GATE_RESULT,
-              \"artifact_run_id\": \"$RUN_ID\"
-            }" || echo "Warning: failed to post to conductor ledger"
+              \"report\": $GATE_RESULT
+            }" || echo "Warning: failed to post gate report"
 
-          # Fail the workflow if gate says FAIL (blocks merge in GitHub)
-          if [ "$GATE" = "FAIL" ]; then
-            echo "::error::Boss daemon gate: FAIL — $SUMMARY"
+          # Fail the workflow if gate says reject (blocks merge in GitHub)
+          if [ "$GATE" = "reject" ]; then
+            echo "::error::Boss daemon gate: reject — $SUMMARY"
             exit 1
           fi

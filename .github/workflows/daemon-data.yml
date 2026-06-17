@@ -55,7 +55,7 @@ on:
 jobs:
   data-daemon:
     name: "SQL / RLS review"
-    runs-on: self-hosted
+    runs-on: ubuntu-latest      # serverless — GitHub-hosted (no Hetzner VPS)
     timeout-minutes: 30
 
     steps:
@@ -167,11 +167,13 @@ jobs:
           steps.tier_check.outputs.skip == 'false' &&
           steps.human_check.outputs.yielding == 'false'
         env:
-          SPD_LEDGER_URL: ${{ vars.SPD_CONDUCTOR_URL }}
+          SPD_API_URL:   ${{ vars.SPD_API_URL }}
+          SPD_API_TOKEN: ${{ secrets.SPD_API_TOKEN }}
         run: |
-          # Post run metadata to conductor for cost tracking
-          curl -sf -X POST "$SPD_LEDGER_URL/ledger/daemon-run" \
+          # Post run metadata to the cli-api edge function (serverless ledger)
+          curl -sf -X POST "$SPD_API_URL/daemon-run" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $SPD_API_TOKEN" \
             -d "{
               \"project_slug\": \"${{ vars.SPD_PROJECT_SLUG }}\",
               \"daemon_role\": \"data\",
