@@ -47,6 +47,35 @@ prod_ref    = "<filled-by-provisioning>"
 [cloudflare]
 pages_project = "<project>"
 
+# ── Auth configuration ────────────────────────────────────────────────────────
+# Supabase (GoTrue) handles authentication. No separate auth service needed.
+# MAU billing model: a user counts as 1 MAU per calendar month if they
+# sign in or auto-refresh their JWT at least once. See src/components/SupabasePricingCalc.tsx.
+
+[auth]
+provider              = "supabase"
+session_expiry_hours  = 1          # JWT TTL; auto-refreshed while app is open
+username_required     = false      # set true to force @handle selection during onboarding
+
+# ── OAuth providers ───────────────────────────────────────────────────────────
+# These are the checkboxes a Producer selects when spinning up a new project.
+# true  = provider button shown on login page + configured in supabase/config.toml
+# false = provider disabled (button hidden, no env vars needed)
+#
+# After changing: update supabase/config.toml enabled flags, set env vars in
+# .env.local for local dev, and set secrets in cloud Supabase dashboard for staging/prod.
+# The VITE_AUTH_PROVIDERS env var (comma-separated) controls which buttons App.tsx renders.
+
+[auth.providers]
+google    = true    # universal — recommended for every project
+github    = false   # developer-focused projects and tools
+twitter   = false   # social features, creator tools
+facebook  = false   # mass-market consumer applications
+linkedin  = false   # B2B, professional tools, job boards
+discord   = false   # gaming, developer communities, creator platforms
+apple     = false   # required if distributing on Apple App Store
+microsoft = false   # enterprise, Microsoft / Azure ecosystem
+
 # ── Docker dev-container settings ────────────────────────────────────────────
 # Used by `spd env` to compute LOCAL_URL correctly regardless of where the
 # spd CLI is running (host shim vs inside the Docker container network).
@@ -59,5 +88,5 @@ pages_project = "<project>"
 app_port           = 5173
 service_name       = "app"
 container_name     = "${COMPOSE_PROJECT_NAME:-spd-project}-app"
-supabase_url_local = "http://supabase-kong:8000"
+supabase_url_local = "http://host.docker.internal:54321"
 supabase_url_host  = "http://localhost:54321"

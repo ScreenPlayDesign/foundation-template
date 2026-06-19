@@ -1,0 +1,141 @@
+# supabase/config.toml — local Supabase configuration
+#
+# Checked into the repo so new clones skip `supabase init`.
+# The supabase CLI reads this file when you run `supabase start`.
+#
+# ── Enabling OAuth providers ──────────────────────────────────────────────────
+# 1. Set `enabled = true` for the provider(s) you want
+# 2. Create the OAuth app in the provider's developer console
+# 3. Add the callback URL: http://localhost:54321/auth/v1/callback
+# 4. Add the client_id and secret to .env.local (they are gitignored)
+# 5. Restart: supabase stop && supabase start
+# 6. For staging/prod: set the credentials in the Supabase cloud dashboard
+#    under Authentication → Providers
+#
+# spd_config.toml's [auth.providers] section is the intent layer.
+# This file is the implementation layer.
+
+project_id = "spd-project"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[auth]
+enabled = true
+# Must match your dev server URL — Supabase redirects here after OAuth.
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173", "http://127.0.0.1:5173"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OAuth providers
+# Enable the ones listed as `true` in spd_config.toml [auth.providers].
+# Each section requires client_id and secret from the provider's dev console.
+#
+# Callback URL to register with every provider:
+#   Local:   http://localhost:54321/auth/v1/callback
+#   Staging: https://<staging-ref>.supabase.co/auth/v1/callback
+#   Prod:    https://<prod-ref>.supabase.co/auth/v1/callback
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Google ────────────────────────────────────────────────────────────────────
+# console.cloud.google.com → APIs & Services → Credentials → OAuth 2.0 Client
+# Scopes needed: email, profile (default openid)
+[auth.external.google]
+enabled = true
+client_id        = "env(GOOGLE_CLIENT_ID)"
+secret           = "env(GOOGLE_CLIENT_SECRET)"
+skip_nonce_check = false
+
+# ── GitHub ────────────────────────────────────────────────────────────────────
+# github.com → Settings → Developer settings → OAuth Apps → New OAuth App
+# Scopes needed: read:user, user:email
+[auth.external.github]
+enabled = false
+client_id = "env(GITHUB_CLIENT_ID)"
+secret    = "env(GITHUB_CLIENT_SECRET)"
+
+# ── Twitter / X ───────────────────────────────────────────────────────────────
+# developer.twitter.com → Projects & Apps → Add App → Keys and Tokens
+# Must enable OAuth 2.0 and set the callback URL.
+# Scopes needed: tweet.read, users.read (for profile data)
+[auth.external.twitter]
+enabled = false
+client_id = "env(TWITTER_CLIENT_ID)"
+secret    = "env(TWITTER_CLIENT_SECRET)"
+
+# ── Facebook ──────────────────────────────────────────────────────────────────
+# developers.facebook.com → My Apps → Add Product → Facebook Login
+# Scopes needed: email, public_profile
+[auth.external.facebook]
+enabled = false
+client_id = "env(FACEBOOK_CLIENT_ID)"
+secret    = "env(FACEBOOK_CLIENT_SECRET)"
+
+# ── LinkedIn (OIDC) ───────────────────────────────────────────────────────────
+# linkedin.com/developers → My Apps → Auth → OAuth 2.0 settings
+# LinkedIn uses OIDC — note the provider key is `linkedin_oidc` (not `linkedin`).
+# Scopes needed: openid, profile, email
+[auth.external.linkedin_oidc]
+enabled = false
+client_id = "env(LINKEDIN_CLIENT_ID)"
+secret    = "env(LINKEDIN_CLIENT_SECRET)"
+
+# ── Discord ───────────────────────────────────────────────────────────────────
+# discord.com/developers/applications → New Application → OAuth2
+# Scopes needed: identify, email
+[auth.external.discord]
+enabled = false
+client_id = "env(DISCORD_CLIENT_ID)"
+secret    = "env(DISCORD_CLIENT_SECRET)"
+
+# ── Apple ─────────────────────────────────────────────────────────────────────
+# developer.apple.com → Certificates, Identifiers & Profiles → Services IDs
+# Required if your app is distributed on the App Store (Apple policy).
+# Apple Sign In requires a Services ID, Team ID, Key ID, and a .p8 private key.
+# The `secret` field here is the JWT you generate from those credentials.
+[auth.external.apple]
+enabled = false
+client_id = "env(APPLE_CLIENT_ID)"    # your Services ID (e.g. com.yourapp.auth)
+secret    = "env(APPLE_SECRET)"       # generated JWT (not the raw .p8 key)
+
+# ── Microsoft (Azure AD / Entra ID) ──────────────────────────────────────────
+# portal.azure.com → Azure Active Directory → App registrations → New registration
+# Note: Supabase uses `azure` as the provider key for Microsoft.
+# Scopes needed: openid, email, profile
+[auth.external.azure]
+enabled = false
+client_id = "env(MICROSOFT_CLIENT_ID)"
+secret    = "env(MICROSOFT_CLIENT_SECRET)"
+url       = "env(MICROSOFT_TENANT_URL)"  # e.g. https://login.microsoftonline.com/<tenant-id>/v2.0

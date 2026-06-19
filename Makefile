@@ -59,7 +59,8 @@ help:
 # DEV LIFECYCLE
 # ══════════════════════════════════════════════════════════════════════════════
 
-dev: ## Start full local stack: Supabase + Vite HMR (docker compose --profile dev up)
+dev: ## Start local Vite HMR dev server (runs `supabase start` first if not already up)
+	@supabase status >/dev/null 2>&1 || (printf "  Starting local Supabase...\n" && supabase start)
 	$(COMPOSE) --profile dev up
 
 dev.d: ## Start full local stack in background (detached)
@@ -239,16 +240,16 @@ setup.env: ## Check .env.local exists (copy from .env.example if not)
 	  printf "  \033[32m✓\033[0m  .env.local exists\n"; \
 	fi
 
-setup.supabase: ## Initialize Supabase docker stack (one-time)
-	@if [ ! -d "supabase/docker" ]; then \
-	  printf "  Initializing Supabase local stack...\n"; \
-	  supabase init; \
-	  supabase start; \
-	  supabase db push --local; \
-	  printf "  \033[32m✓\033[0m  Supabase local stack initialized\n"; \
+setup.supabase: ## Start local Supabase via the CLI and apply migrations (one-time)
+	@if supabase status >/dev/null 2>&1; then \
+	  printf "  \033[32m✓\033[0m  Supabase already running\n"; \
 	else \
-	  printf "  \033[32m✓\033[0m  supabase/docker already exists\n"; \
+	  printf "  Starting local Supabase stack...\n"; \
+	  supabase start; \
+	  printf "  \033[32m✓\033[0m  Supabase started\n"; \
 	fi
+	supabase db push --local
+	printf "  \033[32m✓\033[0m  Migrations applied\n"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

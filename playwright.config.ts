@@ -3,7 +3,11 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './tests',
   retries: process.env.CI ? 1 : 0,
-  reporter: [['html', { open: 'never' }]],
+  forbidOnly: !!process.env.CI,
+  reporter: [
+    ['html', { open: 'never' }],
+    ['json', { outputFile: 'test-results/results.json' }],
+  ],
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:5173',
     screenshot: 'on',

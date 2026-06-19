@@ -30,6 +30,11 @@
 name: "🎭 Boss Daemon (Playwright gate)"
 
 on:
+  # The promotion GATE: GitHub runs this natively on any PR onto staging/prod,
+  # so the gate always tests the PR's own head commit (no external dispatcher).
+  pull_request:
+    branches: [staging, prod]
+    types: [opened, synchronize, reopened]
   workflow_run:
     workflows: ["🎨 Design Daemon (staging branch)"]
     types: [completed]
@@ -96,13 +101,17 @@ jobs:
             echo "yielding=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Checkout staging
+      # On a pull_request run, test the PR's HEAD commit (the code being promoted).
+      # Otherwise (workflow_run / push / manual) test staging. GitHub's default
+      # checkout already resolves the PR merge ref, but we pin head.sha to gate
+      # exactly what the reviewer sees.
+      - name: Checkout the code under test
         if: |
           steps.tier_check.outputs.skip == 'false' &&
           steps.human_check.outputs.yielding == 'false'
         uses: actions/checkout@v4
         with:
-          ref: staging
+          ref: ${{ github.event.pull_request.head.sha || 'staging' }}
 
       # ── Install Playwright browsers on first run (cached after) ─────────────
       - name: Setup Playwright

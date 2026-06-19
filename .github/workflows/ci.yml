@@ -18,8 +18,8 @@ jobs:
       - run: bunx playwright install --with-deps chromium
       - run: bun run test
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_URL:      ${{ vars.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || 'placeholder_anon_key' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
