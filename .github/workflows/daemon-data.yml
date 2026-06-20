@@ -33,7 +33,7 @@
 #   ANTHROPIC_API_KEY    your Anthropic API key
 # ──────────────────────────────────────────────────────────────────────────────
 
-name: "🤖 Data Daemon (dev branch)"
+name: "Data Daemon (dev branch)"
 
 on:
   push:

@@ -27,7 +27,7 @@
 #   ANTHROPIC_API_KEY, SPD_API_TOKEN (an spd_ admin token)
 # ──────────────────────────────────────────────────────────────────────────────
 
-name: "🎭 Boss Daemon (Playwright gate)"
+name: "Boss Daemon (Playwright gate)"
 
 on:
   # The promotion GATE: GitHub runs this natively on any PR onto staging/prod,

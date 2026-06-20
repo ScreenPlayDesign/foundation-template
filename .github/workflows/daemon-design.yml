@@ -19,7 +19,7 @@
 #   ANTHROPIC_API_KEY
 # ──────────────────────────────────────────────────────────────────────────────
 
-name: "🎨 Design Daemon (staging branch)"
+name: "Design Daemon (staging branch)"
 
 on:
   push:
