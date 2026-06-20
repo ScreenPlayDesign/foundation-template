@@ -37,6 +37,7 @@ BRANCH  ?=   # make db.push BRANCH=staging
   db.push db.push.staging db.reset db.diff db.migrate db.studio db.seed \
   gate gate.staging gate.prod \
   build typecheck lint \
+  spd.init \
   setup setup.supabase setup.env \
   secrets.list secrets.set \
   env doctor status \
@@ -227,7 +228,10 @@ status: ## Project status dashboard
 # FIRST-TIME SETUP
 # ══════════════════════════════════════════════════════════════════════════════
 
-setup: setup.env setup.supabase ## Full first-time project setup
+spd.init: ## One-time: put a new repo cloned from this template on SPD rails (branches + protection + vars)
+	bash scripts/init-project.sh
+
+setup: setup.env setup.supabase ## Full first-time local dev setup (after spd.init)
 	$(BUN) install
 	@printf "\n  \033[32m✓\033[0m  Setup complete.\n"
 	@printf "  Run \033[36mmake dev\033[0m to start the local stack.\n\n"
