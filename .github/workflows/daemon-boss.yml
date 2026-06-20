@@ -71,8 +71,12 @@ jobs:
         id: tier_check
         env:
           TIER: ${{ inputs.force_tier || vars.BOSS_DAEMON_TIER || 'craft' }}
+          PROJECT_SLUG: ${{ vars.SPD_PROJECT_SLUG }}
         run: |
-          if [ "$TIER" = "idle" ]; then
+          if [ -z "$PROJECT_SLUG" ]; then
+            echo "SPD_PROJECT_SLUG not set — skipping (template repo, not a configured project)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ "$TIER" = "idle" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
