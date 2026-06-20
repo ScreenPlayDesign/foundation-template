@@ -36,7 +36,7 @@ on:
     branches: [staging, prod]
     types: [opened, synchronize, reopened]
   workflow_run:
-    workflows: ["🎨 Design Daemon (staging branch)"]
+    workflows: ["Design Daemon (staging branch)"]
     types: [completed]
     branches: [staging]
   push:
@@ -124,7 +124,7 @@ jobs:
           steps.human_check.outputs.yielding == 'false'
         run: |
           command -v bun >/dev/null 2>&1 || npm install -g bun
-          bun install --frozen-lockfile
+          bun install
           # Browsers + OS libs are PRE-installed in the mcr.microsoft.com/playwright
           # container image — no `playwright install` step needed (saves CI minutes).
 
