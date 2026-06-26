@@ -90,3 +90,26 @@ service_name       = "app"
 container_name     = "${COMPOSE_PROJECT_NAME:-spd-project}-app"
 supabase_url_local = "http://host.docker.internal:54321"
 supabase_url_host  = "http://localhost:54321"
+
+# ── Container image layers ────────────────────────────────────────────────────
+# The 4-layer image model:
+#
+#   platform  Layer 1 — SPD toolset, no secrets, maintained by SPD CI
+#   base      Layer 2 — project config only, no secrets, whole team can pull
+#   team      Layer 3a — dev + staging credentials baked in, team pull access
+#   prod      Layer 3b — all credentials including producer secrets, CI-only
+#
+# The cornerpost affiliate builds base and team. The SPD platform builds prod
+# after the producer enters credentials via the producer dashboard.
+#
+# See: cli/docs/CONTAINER_ARCHITECTURE.md
+#
+# `spd activate` uses `team` by default. Production CI pulls `prod` explicitly.
+# `spd image status` shows which layers are pulled locally.
+# `spd image rotate team` rebuilds after a secret rotation.
+#
+[container]
+platform = "ghcr.io/screenplaydesign/spd-cli:latest"
+base     = "ghcr.io/screenplaydesign/projects/<project>:base"
+team     = "ghcr.io/screenplaydesign/projects/<project>:team"
+prod     = "ghcr.io/screenplaydesign/projects/<project>:prod"
