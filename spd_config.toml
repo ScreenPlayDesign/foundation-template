@@ -44,6 +44,14 @@ repo = "<project>"
 staging_ref = "<filled-by-provisioning>"
 prod_ref    = "<filled-by-provisioning>"
 
+# ── Local dev (Docker / SPD port slot) ─────────────────────────────────────
+# project_id must match supabase/config.toml. Defaults to the project slug.
+# Port values are computed from the slot: API = 54321 + slot*10, DB = 54322 + slot*10.
+# Scaffold with: spd db init-ports
+local_project_id = "<project>"
+local_api_port   = 54321   # slot 0 default
+local_db_port    = 54322   # slot 0 default
+
 [cloudflare]
 pages_project = "<project>"
 
