@@ -5,7 +5,9 @@
   "description": "ScreenPlayDesign master boilerplate — Vite 8 + React 19 + Tailwind 4 PWA with Supabase client hooks",
   "type": "module",
   "scripts": {
+    "predev": "bun run scripts/require-container.ts",
     "dev": "vite",
+    "prepreview": "bun run scripts/require-container.ts",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
