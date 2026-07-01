@@ -11,5 +11,5 @@
     "isolatedModules": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "screenplay/tests", "playwright.config.ts"]
+  "include": ["frontend/src", "screenplay/tests", "playwright.config.ts", "vite.config.ts"]
 }

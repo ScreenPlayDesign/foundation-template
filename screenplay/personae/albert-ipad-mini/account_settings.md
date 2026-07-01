@@ -3,7 +3,7 @@ persona: albert-ipad-mini
 device: iPad Mini
 auth_method: email
 env_prefix: ALBERT
-avatar: /avatars/albert.svg
+avatar: ./avatar.svg
 confidence: assumption
 ---
 

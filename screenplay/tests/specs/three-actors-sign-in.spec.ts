@@ -22,10 +22,10 @@
 import { test, expect, devices } from '@playwright/test'
 import { requireActorCredentials, signInAs } from '../fixtures/auth'
 
-// One device per actor — see screenplay/personae/*.md frontmatter. Keeping
-// this list here (not re-derived from the .md files at runtime) is a
-// deliberate simplification; if you add a fourth actor, add their device
-// here too.
+// One device per actor — see screenplay/personae/<slug>/account_settings.md
+// frontmatter. Keeping this list here (not re-derived from the .md files at
+// runtime) is a deliberate simplification; if you add a fourth actor, add
+// their device here too.
 const ACTOR_DEVICES = {
   albert: devices['iPad Mini'],
   beth:   devices['iPhone SE'],
@@ -52,7 +52,7 @@ test.describe('Feature: Three actors sign in with email', () => {
     await test.step("And Albert's profile shows his own name, avatar, and email", async () => {
       await page.getByTestId('tab-profile').click()
       await expect(page.getByTestId('tab-panel-profile')).toContainText(ALBERT.email)
-      await expect(page.getByAltText('User avatar')).toHaveAttribute('src', /albert\.svg/)
+      await expect(page.getByAltText('User avatar')).toHaveAttribute('src', /albert-ipad-mini\.svg/)
     })
 
     await ctx.close()
@@ -79,13 +79,13 @@ test.describe('Feature: Three actors sign in with email', () => {
       await expect(beth.getByTestId('app-shell')).toBeVisible()
       await beth.getByTestId('tab-profile').click()
       await expect(beth.getByTestId('tab-panel-profile')).toContainText(BETH.email)
-      await expect(beth.getByAltText('User avatar')).toHaveAttribute('src', /beth\.svg/)
+      await expect(beth.getByAltText('User avatar')).toHaveAttribute('src', /beth-iphone-se\.svg/)
     })
     await test.step("And Albert's session is unaffected", async () => {
       await albert.getByTestId('tab-profile').click()
       await expect(albert.getByTestId('tab-panel-profile')).toContainText(ALBERT.email)
       await expect(albert.getByTestId('tab-panel-profile')).not.toContainText(BETH.email)
-      await expect(albert.getByAltText('User avatar')).toHaveAttribute('src', /albert\.svg/)
+      await expect(albert.getByAltText('User avatar')).toHaveAttribute('src', /albert-ipad-mini\.svg/)
     })
 
     await Promise.all([albertCtx.close(), bethCtx.close()])
@@ -105,7 +105,7 @@ test.describe('Feature: Three actors sign in with email', () => {
       carol:  await contexts.carol.newPage(),
     }
     const creds = { albert: ALBERT, beth: BETH, carol: CAROL }
-    const avatarFile = { albert: /albert\.svg/, beth: /beth\.svg/, carol: /carol\.svg/ }
+    const avatarFile = { albert: /albert-ipad-mini\.svg/, beth: /beth-iphone-se\.svg/, carol: /carol-android-galaxy\.svg/ }
 
     await test.step('When Albert (iPad Mini), Beth (iPhone SE), and Carol (Galaxy S9+) each sign in with email and password', async () => {
       for (const name of ['albert', 'beth', 'carol'] as const) {

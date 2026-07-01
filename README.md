@@ -23,6 +23,10 @@ whenever a new project is provisioned.
 
 ## Conventions clients inherit
 
+- `frontend/` holds the app itself (`src/`, `public/`, `index.html`) — kept
+  separate from `supabase/`, `screenplay/`, and `scripts/` at the repo root.
+  `package.json`/`bun.lock`/`node_modules` stay at the repo root; only the
+  Vite `root` moves (see `vite.config.ts`).
 - The spec lives in `screenplay/` (cast, setting, scenes) — see `screenplay/README.md`
 - One Gherkin scenario ↔ one Playwright test; screenshots gate promotion
 - `data-testid` anchors in components — the test suite depends on them
@@ -34,15 +38,21 @@ whenever a new project is provisioned.
 
 This template ships with a three-actor cast — `albert-ipad-mini`,
 `beth-iphone-se`, `carol-android-galaxy` (`screenplay/personae/`), each
-with a distinctive avatar (`public/avatars/`) and pinned to a different
-device — and one scene proving they can each sign in and be told apart:
-their own name, their own avatar, their own data
+with a distinctive avatar and pinned to a different device — and one
+scene proving they can each sign in and be told apart: their own name,
+their own avatar, their own data
 (`screenplay/features/three-actors-sign-in.feature`). Deliberately
 minimal on purpose: no backstory, no demographics, just a name, a device,
 and a login — a device/browser coverage mechanism, not a UX exercise.
 Rename or replace them once you know who your real users are; keep the
 multi-actor, multi-device pattern. Run `spd screenplay check` to validate
 the folder still conforms to convention after you do.
+
+Avatars aren't static files the app ships with — each actor's
+`screenplay/personae/<slug>/avatar.svg` gets uploaded to Supabase Storage
+by `seed:actors` when the account is created, the same way a real
+avatar-upload feature works, and `user_metadata.avatar_url` points at the
+resulting Storage URL.
 
 Sign-in is email + password by default — zero external setup, works the
 moment `supabase start` is running:

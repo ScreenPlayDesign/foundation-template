@@ -8,7 +8,16 @@ tradeoffs: `~/dev/spd/BUILDING_THE_SCREENPLAY_PATTERN.md`.
 
 ```
 screenplay/
-├── personae/   — the cast: Albert, Beth, Carol (rename these)
+├── personae/
+│   ├── albert-ipad-mini/
+│   │   ├── account_settings.md
+│   │   └── avatar.svg
+│   ├── beth-iphone-se/
+│   │   ├── account_settings.md
+│   │   └── avatar.svg
+│   └── carol-android-galaxy/
+│       ├── account_settings.md
+│       └── avatar.svg
 ├── setting/              — the world your app happens in (empty — fill in)
 ├── features/             — the scenes: Gherkin .feature files
 ├── fixtures/              — props: seed data the scenes draw on
@@ -20,19 +29,37 @@ screenplay/
 `review/` (the HTML report + raw artifacts) is a sibling at the repo root,
 not nested here — it's generated build output, not authored content.
 
+`personae/` here follows the strict, folder-per-actor convention: once a
+project adopts it, `personae/` may contain only subfolders, and every
+subfolder must have exactly `account_settings.md` + `avatar.svg` — no
+loose files. `spd screenplay check` enforces this once it detects the
+convention (auto-detected: if `personae/` has any loose `.md` file, the
+older, looser convention applies instead — see fastnacht-lancaster's
+`personae/` for that shape, which mixes real named collaborators with
+narrative attendee personas that don't need a device or avatar).
+
+The `avatar.svg` in each folder is the source image, not a served asset —
+it never lives in `frontend/public/`. A real user's avatar is something
+attached to their account, not a file the app ships with, so
+`scripts/seed-actors.ts` uploads each actor's `avatar.svg` to Supabase
+Storage (the `avatars` bucket, created automatically) when it creates
+their account, and sets the resulting Storage URL as
+`user_metadata.avatar_url` — the same path a real avatar-upload feature
+would take.
+
 ## FACADE — start here, then replace it
 
-`personae/albert.md`, `beth.md`, and `carol.md` are three placeholder
-actors, deliberately minimal: a name, a device, an avatar, a way to log
-in. No backstory, no demographics — they're a device/browser coverage
-mechanism, not a UX exercise. Albert is `albert-ipad-mini` (iPad Mini),
-Beth is `beth-iphone-se` (iPhone SE), Carol is `carol-android-galaxy`
-(Galaxy S9+) — three different viewports, so cross-device coverage comes
-free with the same scene that proves cross-user isolation.
-`screenplay/features/three-actors-sign-in.feature` is the scene that
-proves it, and `screenplay/tests/specs/three-actors-sign-in.spec.ts` is
-the Playwright implementation — three real browser contexts, three real
-devices, one reviewed result.
+`personae/albert-ipad-mini/`, `beth-iphone-se/`, and `carol-android-galaxy/`
+are three placeholder actors, deliberately minimal: a name, a device, an
+avatar, a way to log in. No backstory, no demographics — they're a
+device/browser coverage mechanism, not a UX exercise. Albert is an iPad
+Mini, Beth is an iPhone SE, Carol is a Galaxy S9+ — three different
+viewports, so cross-device coverage comes free with the same scene that
+proves cross-user isolation. `screenplay/features/
+three-actors-sign-in.feature` is the scene that proves it, and
+`screenplay/tests/specs/three-actors-sign-in.spec.ts` is the Playwright
+implementation — three real browser contexts, three real devices, one
+reviewed result.
 
 Run `bun run seed:actors` once against local Supabase to create the three
 accounts (email + password — zero external setup), then `bun run dev` and

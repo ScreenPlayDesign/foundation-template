@@ -41,8 +41,8 @@ on:
     paths:
       - "supabase/**"
       - "shared-contracts.ts"
-      - "src/**/*.ts"
-      - "src/**/*.tsx"
+      - "frontend/src/**/*.ts"
+      - "frontend/src/**/*.tsx"
   schedule:
     - cron: "0 3 * * *"   # nightly 3am UTC
   workflow_dispatch:
@@ -140,7 +140,7 @@ jobs:
           3. Verify RLS policies cover all tables referenced in the TypeScript interfaces
           4. Check that enum values in SQL match SCREAMING_SNAKE_CASE enums in shared-contracts.ts
           5. Fix any mismatches by editing the appropriate migration or creating a new one in supabase/migrations/
-          6. Do NOT touch UI files (src/components/, src/pages/) — stay in the data layer
+          6. Do NOT touch UI files (frontend/src/components/, frontend/src/pages/) — stay in the data layer
           7. Do NOT change .env files or secrets
           8. Keep your changes minimal and targeted — prefer surgical fixes over rewrites
 

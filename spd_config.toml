@@ -20,8 +20,12 @@ testing  = "playwright"
 pwa      = true
 
 [paths]
+# app stays "." (repo root) — package.json/bun.lock/node_modules live there,
+# not in frontend/. frontend/ holds only source (src/, public/, index.html);
+# `bun run dev`/`build` are still invoked from the repo root, which is what
+# `spd dev` and friends actually need `app` to point at.
 app        = "."
-src        = "src"
+src        = "frontend/src"
 migrations = "supabase/migrations"
 screenplay = "screenplay"
 tests      = "screenplay/tests"
@@ -62,7 +66,7 @@ pages_project = "<project>"
 # ── Auth configuration ────────────────────────────────────────────────────────
 # Supabase (GoTrue) handles authentication. No separate auth service needed.
 # MAU billing model: a user counts as 1 MAU per calendar month if they
-# sign in or auto-refresh their JWT at least once. See src/components/SupabasePricingCalc.tsx.
+# sign in or auto-refresh their JWT at least once. See frontend/src/components/SupabasePricingCalc.tsx.
 
 [auth]
 provider              = "supabase"

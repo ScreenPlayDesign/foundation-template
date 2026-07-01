@@ -3,7 +3,7 @@ persona: carol-android-galaxy
 device: Galaxy S9+
 auth_method: email
 env_prefix: CAROL
-avatar: /avatars/carol.svg
+avatar: ./avatar.svg
 confidence: assumption
 ---
 

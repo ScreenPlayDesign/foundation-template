@@ -3,7 +3,7 @@ persona: beth-iphone-se
 device: iPhone SE
 auth_method: email
 env_prefix: BETH
-avatar: /avatars/beth.svg
+avatar: ./avatar.svg
 confidence: assumption
 ---
 
