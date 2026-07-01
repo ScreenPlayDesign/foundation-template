@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <title>Albert — tech-forward, precise, always shipping something</title>
+  <circle cx="48" cy="48" r="48" fill="#0f3d57"/>
+  <circle cx="48" cy="48" r="48" fill="url(#albert-grad)" fill-opacity="0.35"/>
+  <defs>
+    <linearGradient id="albert-grad" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#0f3d57" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- head -->
+  <circle cx="48" cy="40" r="17" fill="#e8b98a"/>
+  <!-- simple side-part hair -->
+  <path d="M31 36c0-10 8-17 17-17s17 7 17 17c-3-3-9-5-17-5s-14 2-17 5z" fill="#1c1c1c"/>
+  <!-- glasses: the "tech" signature -->
+  <rect x="34" y="38" width="12" height="9" rx="2" fill="none" stroke="#1c1c1c" stroke-width="2"/>
+  <rect x="50" y="38" width="12" height="9" rx="2" fill="none" stroke="#1c1c1c" stroke-width="2"/>
+  <line x1="46" y1="42" x2="50" y2="42" stroke="#1c1c1c" stroke-width="2"/>
+  <!-- shoulders -->
+  <path d="M20 88c2-16 13-26 28-26s26 10 28 26z" fill="#134e6f"/>
+  <!-- collar / hoodie zip, the tech-casual signature -->
+  <path d="M42 65l6 8 6-8" fill="none" stroke="#0b2d40" stroke-width="2"/>
+  <!-- small circuit motif, bottom corner -->
+  <g stroke="#22d3ee" stroke-width="1.5" fill="none" opacity="0.8">
+    <circle cx="78" cy="78" r="2.5"/>
+    <path d="M78 75.5v-4M78 80.5v4M75.5 78h-4M80.5 78h4"/>
+  </g>
+</svg>

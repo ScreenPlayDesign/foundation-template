@@ -82,7 +82,7 @@ skip_nonce_check = false
 # github.com → Settings → Developer settings → OAuth Apps → New OAuth App
 # Scopes needed: read:user, user:email
 [auth.external.github]
-enabled = false
+enabled = true    # default, alongside Google — see spd_config.toml [auth.providers]
 client_id = "env(GITHUB_CLIENT_ID)"
 secret    = "env(GITHUB_CLIENT_SECRET)"
 

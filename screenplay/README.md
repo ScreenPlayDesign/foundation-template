@@ -1,0 +1,74 @@
+# The Screenplay
+
+This is the spec for the app — written for the producer, not just the
+developer. See any SPD project's `screenplay/` for the full convention;
+this template starts you off with the minimum viable cast and world. Full
+background on why this shape exists, what it's called, and its real
+tradeoffs: `~/dev/spd/BUILDING_THE_SCREENPLAY_PATTERN.md`.
+
+```
+screenplay/
+├── personae/   — the cast: Albert, Beth, Carol (rename these)
+├── setting/              — the world your app happens in (empty — fill in)
+├── features/             — the scenes: Gherkin .feature files
+├── fixtures/              — props: seed data the scenes draw on
+└── tests/             — the technical realization: Playwright specs
+    ├── specs/              implemented from the scenes above
+    └── fixtures/            (auth.ts — session injection for actor sign-in)
+```
+
+`review/` (the HTML report + raw artifacts) is a sibling at the repo root,
+not nested here — it's generated build output, not authored content.
+
+## FACADE — start here, then replace it
+
+`personae/albert.md`, `beth.md`, and `carol.md` are three
+placeholder actors, each with a distinctive avatar (`public/avatars/`),
+who exist for exactly one reason: to prove, on day one, that three
+simultaneous users can each sign in and the app tells them apart — their
+own name, their own avatar, their own data. `screenplay/features/
+three-actors-sign-in.feature` is the scene that proves it, and
+`screenplay/tests/specs/three-actors-sign-in.spec.ts` is the
+Playwright implementation — three real browser contexts, three real
+identities, side-by-side screenshots.
+
+Run `bun run seed:actors` once against local Supabase to create the three
+accounts (email + password — zero external setup), then `bun run dev` and
+sign in as any of them at the login page's "Continue with email." Google
+and GitHub OAuth are wired into `App.tsx` and on by default per the
+platform convention, but nothing here depends on having them configured.
+
+Keep the *pattern* — multi-actor scenes, named personas instead of "User
+A/B/C," side-by-side screenshots as proof multiple people don't interfere
+with each other — and replace the *content*. Albert, Beth, and Carol
+almost certainly aren't your users. Delete them once you've written the
+real cast for your app, the same way `App.tsx`'s facade UI gets torn out
+once you have a real one. If you keep persona-driven scenes for your real
+users, mark each persona's `confidence` as `assumption` until you've
+actually checked it against something real — see
+`BUILDING_THE_SCREENPLAY_PATTERN.md` for why that distinction matters.
+
+## Why three actors, not one
+
+A single-user smoke test proves the app loads. It doesn't prove that
+Albert's session doesn't leak into Beth's browser, that Carol's data
+doesn't show up in Albert's view, or that the app behaves correctly when
+three real people are using it at the same time — which is the normal
+case for almost any app, not an edge case. Starting with three actors
+from day one means every scene you add afterward inherits that habit
+instead of bolting it on later. That said: reserve multi-actor scenes for
+things that actually need them (concurrency, cross-user isolation).
+Single-actor scenes are correct and cheaper for most features.
+
+## Auth in scenes — read this before writing "as a Y, I sign in with Google"
+
+Google OAuth cannot be driven by Playwright (there's no reliable, ToS-safe
+way to automate Google's actual consent screen). `screenplay/tests/
+fixtures/auth.ts` seeds a real Supabase session for a real (test-only)
+user account and injects it into `localStorage`, which is what the app's
+`onAuthStateChange` picks up — functionally equivalent to having just
+completed the OAuth flow, without touching Google's UI. This requires
+three seeded test accounts (see `screenplay/tests/fixtures/auth.ts`
+for the env vars) — scenarios that need them self-skip if the credentials
+aren't configured, so they never flake a CI run that hasn't set them up
+yet.

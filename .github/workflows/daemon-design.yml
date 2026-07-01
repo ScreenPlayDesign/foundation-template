@@ -25,8 +25,8 @@ on:
   push:
     branches: [staging]
     paths:
-      - "src/**"               # components, src/**/*.css (Tailwind 4.3 @theme lives here)
-      - "tests/features/**"    # Gherkin scenes the UI must satisfy
+      - "src/**"                    # components, src/**/*.css (Tailwind 4.3 @theme lives here)
+      - "screenplay/features/**"    # Gherkin scenes the UI must satisfy
   workflow_dispatch:
     inputs:
       force_tier:
@@ -112,7 +112,7 @@ jobs:
             "You are the SPD design daemon (theme-graphics-UI-frontend-flow-designer) for project '${{ vars.SPD_PROJECT_SLUG }}'.
 
           Your responsibilities on the staging branch:
-          1. Read tests/features/*.feature — understand what user flows are supposed to look like
+          1. Read screenplay/features/*.feature — understand what user flows are supposed to look like
           2. Read src/components/ — check for visual consistency and Tailwind best practices
           3. Check that Tailwind 4 CSS variables (--color-*, --font-*) are used consistently
           4. Ensure all interactive elements have proper hover, focus, and disabled states

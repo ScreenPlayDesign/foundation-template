@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
-    "test:smoke": "playwright test --grep @smoke"
+    "test:smoke": "playwright test --grep @smoke",
+    "seed:actors": "bun run scripts/seed-actors.ts",
+    "screenplay:check": "spd screenplay check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.46.0",

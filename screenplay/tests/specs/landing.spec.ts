@@ -1,5 +1,5 @@
 /**
- * landing.spec.ts — implements tests/features/landing.feature
+ * landing.spec.ts — implements screenplay/features/landing.feature
  * Screenshot assertion is the visual gate for dev → staging promotion.
  *
  * FACADE — tests the login page shown to unauthenticated visitors.

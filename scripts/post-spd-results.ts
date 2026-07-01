@@ -2,7 +2,7 @@
 /**
  * post-spd-results.ts
  *
- * Reads Playwright's JSON output (test-results/results.json) and posts
+ * Reads Playwright's JSON output (review/artifacts/results.json) and posts
  * per-scenario results to the ScreenPlayDesign dashboard via the cli-api
  * /test-report endpoint.
  *
@@ -21,7 +21,7 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
-const RESULTS_FILE = join(process.cwd(), 'test-results', 'results.json')
+const RESULTS_FILE = join(process.cwd(), 'review', 'results.json')
 
 interface PlaywrightSpec {
   title:    string
@@ -129,7 +129,10 @@ async function main() {
         : null
 
       scenarios.push({
-        feature_file:  file.replace(/^.*tests\//, 'tests/').replace(/\.spec\.[jt]s$/, '.feature'),
+        // Screenplay convention: .feature files live in screenplay/features/,
+        // matched to specs by basename (the 1:1 contract) regardless of
+        // where under screenplay/tests/ the spec itself physically sits.
+        feature_file:  `screenplay/features/${(file.split('/').pop() ?? file).replace(/\.spec\.[jt]s$/, '.feature')}`,
         scenario_name: cleanTitle || title,
         scenario_tags: tagMatches,
         status,

@@ -42,8 +42,7 @@ on:
   push:
     branches: [staging]
     paths:
-      - "tests/features/**"
-      - "tests/specs/**"
+      - "screenplay/**"
       - "playwright.config.*"
   workflow_dispatch:
     inputs:
@@ -147,11 +146,11 @@ jobs:
           set -e
 
           # Extract pass/fail counts from JSON report
-          if [ -f "test-results/results.json" ]; then
+          if [ -f "review/artifacts/results.json" ]; then
             PASSED=$(jq '.suites | .. | objects | .specs? | arrays | .[].tests | .[].results | .[].status' \
-              test-results/results.json 2>/dev/null | grep -c '"passed"' || echo 0)
+              review/artifacts/results.json 2>/dev/null | grep -c '"passed"' || echo 0)
             FAILED=$(jq '.suites | .. | objects | .specs? | arrays | .[].tests | .[].results | .[].status' \
-              test-results/results.json 2>/dev/null | grep -c '"failed"' || echo 0)
+              review/artifacts/results.json 2>/dev/null | grep -c '"failed"' || echo 0)
           else
             PASSED=0
             FAILED=0
@@ -166,10 +165,10 @@ jobs:
           steps.human_check.outputs.yielding == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ github.run_id }}
+          name: review-${{ github.run_id }}
           path: |
             playwright-results/
-            playwright-report/
+            review/
           retention-days: 14
 
       # ── Claude analysis of test results ────────────────────────────────────
@@ -198,7 +197,7 @@ jobs:
           - Tests failed: $FAILED
 
           Your task:
-          1. Read tests/features/*.feature to understand what scenarios SHOULD pass
+          1. Read screenplay/features/*.feature to understand what scenarios SHOULD pass
           2. Read playwright-results/ to see what failed and why
           3. Read pw-output.txt for the full test output
           4. Determine if failures are blocking (would break production) or minor (cosmetic/flaky)

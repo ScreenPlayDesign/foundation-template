@@ -19,7 +19,7 @@
  * everything except the SupabasePricingCalc import and its usage.
  * ─────────────────────────────────────────────────────────────────────────────
  */
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode, type FormEvent } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import type { Provider } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -120,9 +120,12 @@ const ALL_PROVIDERS: ProviderConfig[] = [
 ]
 
 // Parse VITE_AUTH_PROVIDERS env var (e.g. "google,github,discord").
-// Falls back to Google only. Set in .env.local; populated by `spd init` from spd_config.toml.
+// Default is Google + GitHub — every SPD app gets both out of the box.
+// This is a platform convention, not a suggestion: "Continue with Google"
+// (and GitHub) is how SPD apps get and track users by default. Set in
+// .env.local to add more; populated by `spd init` from spd_config.toml.
 const enabledIds = new Set(
-  (import.meta.env.VITE_AUTH_PROVIDERS ?? 'google')
+  (import.meta.env.VITE_AUTH_PROVIDERS ?? 'google,github')
     .split(',').map((s: string) => s.trim()).filter(Boolean)
 )
 const ENABLED_PROVIDERS = ALL_PROVIDERS.filter(p => enabledIds.has(p.id as string))
@@ -158,7 +161,11 @@ function Splash() {
 // Provider buttons are driven by VITE_AUTH_PROVIDERS (see above).
 
 function LoginPage() {
-  const [loading, setLoading] = useState<string | null>(null)
+  const [loading, setLoading]   = useState<string | null>(null)
+  const [showEmail, setShowEmail] = useState(false)
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   async function signIn(provider: Provider) {
     setLoading(provider)
@@ -166,6 +173,20 @@ function LoginPage() {
       provider,
       options: { redirectTo: window.location.origin },
     })
+  }
+
+  // Email + password — the zero-external-setup path. Works the moment
+  // `supabase start` is running, no OAuth app or client secret required.
+  // This is how the three starter actors (Albert, Beth, Carol — see
+  // screenplay/dramatis-personae/) sign in by default; real OAuth stays
+  // available above for when you're ready to wire it up.
+  async function signInWithEmail(e: FormEvent) {
+    e.preventDefault()
+    setEmailError(null)
+    setLoading('email')
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setEmailError(error.message)
+    setLoading(null)
   }
 
   return (
@@ -189,29 +210,89 @@ function LoginPage() {
         </div>
 
         {/* Provider buttons */}
-        <div className="space-y-3">
-          {ENABLED_PROVIDERS.map(provider => (
+        {ENABLED_PROVIDERS.length > 0 && (
+          <div className="space-y-3">
+            {ENABLED_PROVIDERS.map(provider => (
+              <button
+                key={provider.id}
+                data-testid={`signin-${provider.id}`}
+                onClick={() => signIn(provider.id)}
+                disabled={loading !== null}
+                style={provider.style}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg
+                           font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-opacity"
+              >
+                {loading === provider.id
+                  ? <span className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                  : <provider.icon />
+                }
+                {loading === provider.id
+                  ? 'Redirecting…'
+                  : `Continue with ${provider.label}`
+                }
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Divider */}
+        {ENABLED_PROVIDERS.length > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-slate-800" />
+            <span className="text-xs text-slate-600">or</span>
+            <div className="flex-1 h-px bg-slate-800" />
+          </div>
+        )}
+
+        {/* Email + password — collapsed by default when OAuth is available,
+            shown directly when it isn't. */}
+        {!showEmail && ENABLED_PROVIDERS.length > 0 ? (
+          <button
+            data-testid="show-email-login"
+            onClick={() => setShowEmail(true)}
+            className="w-full text-center text-sm text-slate-400 hover:text-slate-200 transition-colors py-2"
+          >
+            Continue with email
+          </button>
+        ) : (
+          <form data-testid="email-login-form" onSubmit={signInWithEmail} className="space-y-3">
+            <input
+              data-testid="email-input"
+              type="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="w-full px-3 py-2.5 rounded-lg bg-slate-800 text-slate-100 text-sm
+                         border border-slate-700 focus:outline-none focus:border-sky-500 placeholder:text-slate-600"
+            />
+            <input
+              data-testid="password-input"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              className="w-full px-3 py-2.5 rounded-lg bg-slate-800 text-slate-100 text-sm
+                         border border-slate-700 focus:outline-none focus:border-sky-500 placeholder:text-slate-600"
+            />
+            {emailError && (
+              <p data-testid="email-login-error" className="text-xs text-red-400">{emailError}</p>
+            )}
             <button
-              key={provider.id}
-              data-testid={`signin-${provider.id}`}
-              onClick={() => signIn(provider.id)}
+              data-testid="email-login-submit"
+              type="submit"
               disabled={loading !== null}
-              style={provider.style}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg
-                         font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-opacity"
+              className="w-full px-4 py-2.5 rounded-lg bg-sky-500 text-white text-sm font-medium
+                         hover:bg-sky-400 disabled:opacity-50 transition-colors"
             >
-              {loading === provider.id
-                ? <span className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                : <provider.icon />
-              }
-              {loading === provider.id
-                ? 'Redirecting…'
-                : `Continue with ${provider.label}`
-              }
+              {loading === 'email' ? 'Signing in…' : 'Sign in'}
             </button>
-          ))}
-        </div>
+          </form>
+        )}
 
         <p className="text-center text-xs text-slate-600">
           By continuing you agree to our{' '}

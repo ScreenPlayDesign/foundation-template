@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <title>Carol — unbothered, grounded, will absolutely find your app's edge cases</title>
+  <circle cx="48" cy="48" r="48" fill="#1e3a2f"/>
+  <circle cx="48" cy="48" r="48" fill="url(#carol-grad)" fill-opacity="0.35"/>
+  <defs>
+    <linearGradient id="carol-grad" x1="0" y1="0" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#34d399"/>
+      <stop offset="1" stop-color="#1e3a2f" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- head -->
+  <circle cx="48" cy="40" r="16" fill="#e2a86f"/>
+  <!-- hair pulled back into a bun — the "yoga" signature -->
+  <path d="M32 38c-1-10 7-18 16-18s17 8 16 18c-3-6-9-9-16-9s-13 3-16 9z" fill="#2c1c12"/>
+  <circle cx="48" cy="20" r="6" fill="#2c1c12"/>
+  <!-- calm expression -->
+  <path d="M42 43c1 1 2 1 3 0M51 43c1 1 2 1 3 0" stroke="#1c1c1c" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <!-- shoulders / tank top -->
+  <path d="M20 88c2-16 13-26 28-26s26 10 28 26z" fill="#2f5a44"/>
+  <!-- lotus motif, the yoga signature -->
+  <g fill="#34d399" opacity="0.9">
+    <ellipse cx="48" cy="72" rx="3" ry="6"/>
+    <ellipse cx="48" cy="72" rx="3" ry="6" transform="rotate(45 48 72)"/>
+    <ellipse cx="48" cy="72" rx="3" ry="6" transform="rotate(90 48 72)"/>
+    <ellipse cx="48" cy="72" rx="3" ry="6" transform="rotate(135 48 72)"/>
+    <circle cx="48" cy="72" r="2.5" fill="#e9fdf3"/>
+  </g>
+</svg>

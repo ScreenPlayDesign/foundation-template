@@ -23,8 +23,12 @@ pwa      = true
 app        = "."
 src        = "src"
 migrations = "supabase/migrations"
-tests      = "tests"
-features   = "tests/features"
+screenplay = "screenplay"
+tests      = "screenplay/tests"
+specs      = "screenplay/tests/specs"
+features   = "screenplay/features"
+personae   = "screenplay/personae"
+review     = "review"
 ci         = ".github/workflows"
 
 [env.dev]
@@ -75,8 +79,8 @@ username_required     = false      # set true to force @handle selection during 
 # The VITE_AUTH_PROVIDERS env var (comma-separated) controls which buttons App.tsx renders.
 
 [auth.providers]
-google    = true    # universal — recommended for every project
-github    = false   # developer-focused projects and tools
+google    = true    # default for every SPD project — the platform's baseline identity layer
+github    = true    # default for every SPD project, alongside Google — not developer-tool-only
 twitter   = false   # social features, creator tools
 facebook  = false   # mass-market consumer applications
 linkedin  = false   # B2B, professional tools, job boards
@@ -100,24 +104,27 @@ supabase_url_local = "http://host.docker.internal:54321"
 supabase_url_host  = "http://localhost:54321"
 
 # ── Container image layers ────────────────────────────────────────────────────
-# The 4-layer image model:
+# The 3-layer image model:
 #
-#   platform  Layer 1 — SPD toolset, no secrets, maintained by SPD CI
-#   base      Layer 2 — project config only, no secrets, whole team can pull
-#   team      Layer 3a — dev + staging credentials baked in, team pull access
-#   prod      Layer 3b — all credentials including producer secrets, CI-only
+#   platform  Layer 1 — SPD toolset, no secrets, maintained by SPD platform CI
+#   agency    Layer 2 — one per agency (not per project), shared across every
+#             project that agency runs. Named after the agency itself
+#             (e.g. Dockerfile.cornerpost) — bakes in agency credentials:
+#             Supabase access token, Cloudflare API token, GitHub deploy key,
+#             Anthropic API key.
+#   project   Layer 3 — this project's config only (refs, repo, zone).
+#             Inherits agency credentials; bakes in no new secrets of its own.
 #
-# The cornerpost affiliate builds base and team. The SPD platform builds prod
-# after the producer enters credentials via the producer dashboard.
+# The agency's Cornerpost affiliate builds the agency image once and the
+# project image per project. See: client/cli/docs/CONTAINER_ARCHITECTURE.md
+# and ~/dev/spd/Dockerfile.cornerpost for the reference agency Dockerfile.
 #
-# See: cli/docs/CONTAINER_ARCHITECTURE.md
-#
-# `spd activate` uses `team` by default. Production CI pulls `prod` explicitly.
+# `spd activate` uses `project` by default.
 # `spd image status` shows which layers are pulled locally.
-# `spd image rotate team` rebuilds after a secret rotation.
+# `spd image rotate agency` rebuilds after an agency-wide secret rotation.
+# `spd image rotate project` rebuilds after this project's refs change.
 #
 [container]
 platform = "ghcr.io/screenplaydesign/spd-cli:latest"
-base     = "ghcr.io/screenplaydesign/projects/<project>:base"
-team     = "ghcr.io/screenplaydesign/projects/<project>:team"
-prod     = "ghcr.io/screenplaydesign/projects/<project>:prod"
+agency   = "ghcr.io/screenplaydesign/agencies/<agency-slug>:latest"
+project  = "ghcr.io/screenplaydesign/projects/<agency-slug>/<project>:latest"

@@ -1,0 +1,67 @@
+# Dockerfile.project — SPD project layer (template)
+#
+# Layer 3 of the 3-layer SPD container model (see
+# ~/dev/spd/client/cli/docs/CONTAINER_ARCHITECTURE.md). Extends the agency
+# image — inherits its credentials (Supabase, Cloudflare, GitHub, Anthropic),
+# adds no new secrets, bakes in only this project's own config.
+#
+# FACADE — every value below is a placeholder. When a new project is cloned
+# from foundation-template, `spd provision` fills these in from the values
+# entered on screenplaydesign.com; do it by hand if you're bootstrapping
+# without the platform.
+#
+# Built by: the agency's Cornerpost affiliate, once per project (or when
+#           spd_config.toml's identity/refs change)
+#
+# Build + push:
+#   spd image build project
+#   (or manually)
+#   docker buildx build -f Dockerfile.project \
+#     --tag ghcr.io/screenplaydesign/projects/<agency-slug>/<project-slug>:latest \
+#     --push .
+
+ARG AGENCY_SLUG=cornerpost
+FROM ghcr.io/screenplaydesign/agencies/${AGENCY_SLUG}:latest
+
+# ── Project identity — replace with the real values ───────────────────────────
+
+ENV SPD_PROJECT_SLUG=change-me
+ENV SPD_PROJECT_NAME="Change Me"
+ENV SPD_GITHUB_ORG=change-me
+ENV SPD_GITHUB_REPO=change-me
+
+# ── Supabase project refs (not secrets — just identifiers; the actual keys
+#    live in the agency layer's credentials) ───────────────────────────────────
+
+ENV SPD_SUPABASE_STAGING_REF=change-me
+ENV SPD_SUPABASE_PROD_REF=change-me
+ENV SPD_SUPABASE_STAGING_URL=https://change-me.supabase.co
+ENV SPD_SUPABASE_PROD_URL=https://change-me.supabase.co
+
+# ── Cloudflare Pages project (not a secret — just a project name) ─────────────
+
+ENV SPD_CLOUDFLARE_PAGES_PROJECT=change-me
+
+# ── Project config ──────────────────────────────────────────────────────────
+# spd_config.toml contains no secrets — URLs, refs, slugs, and the
+# screenplay/auto-spec/review folder-structure assumptions every SPD
+# project shares.
+
+COPY spd_config.toml /root/.config/spd/project-config.toml
+
+# ── Extra project toolset (optional) ───────────────────────────────────────
+# Uncomment and extend if this project needs something the platform image
+# doesn't ship — a specific language runtime, an extra CLI. Most projects
+# won't need this; the platform image already has bun, supabase, gh,
+# wrangler, cloudflared, hcloud, playwright.
+#
+# RUN apt-get update && apt-get install -y --no-install-recommends <package> \
+#     && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# ── Image labels ──────────────────────────────────────────────────────────────
+
+LABEL org.opencontainers.image.title="SPD project image (template)"
+LABEL org.opencontainers.image.description="Project layer — config only, inherits agency credentials"
+LABEL spd.layer="project"
