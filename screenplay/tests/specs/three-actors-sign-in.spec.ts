@@ -2,10 +2,12 @@
  * three-actors-sign-in.spec.ts — implements screenplay/features/three-actors-sign-in.feature
  *
  * FACADE — Albert, Beth, and Carol are placeholder actors (see
- * screenplay/personae/). Rename them once you have real users;
- * keep the pattern: separate browser contexts per actor, real sessions
- * injected via screenplay/tests/fixtures/auth.ts, side-by-side screenshots
- * as proof of cross-user isolation.
+ * screenplay/personae/), each pinned to a distinct device (iPad Mini,
+ * iPhone SE, Galaxy S9+ — see their frontmatter) so the default screenplay
+ * gets cross-device coverage as a side effect of testing cross-user
+ * isolation. Rename or replace them once you have real users; keep the
+ * pattern: separate browser contexts per actor, real sessions injected via
+ * screenplay/tests/fixtures/auth.ts, side-by-side screenshots as proof.
  *
  * Email + password is the default sign-in method for all three — zero
  * external setup required (see scripts/seed-actors.ts). Google and GitHub
@@ -17,15 +19,27 @@
  * accounts, then set the env vars to match (or just use the defaults —
  * see scripts/seed-actors.ts). Self-skips without credentials.
  */
-import { test, expect } from '@playwright/test'
+import { test, expect, devices } from '@playwright/test'
 import { requireActorCredentials, signInAs } from '../fixtures/auth'
+
+// One device per actor — see screenplay/personae/*.md frontmatter. Keeping
+// this list here (not re-derived from the .md files at runtime) is a
+// deliberate simplification; if you add a fourth actor, add their device
+// here too.
+const ACTOR_DEVICES = {
+  albert: devices['iPad Mini'],
+  beth:   devices['iPhone SE'],
+  carol:  devices['Galaxy S9+'],
+} as const
 
 test.describe('Feature: Three actors sign in with email', () => {
 
-  test('@e2e Albert signs in with email and lands in the app', async ({ page }, testInfo) => {
+  test('@e2e Albert signs in with email and lands in the app', async ({ browser }, testInfo) => {
     const { ALBERT } = requireActorCredentials(testInfo, 'ALBERT')
+    const ctx  = await browser.newContext({ ...ACTOR_DEVICES.albert })
+    const page = await ctx.newPage()
 
-    await test.step('Given Albert is signed out', async () => {
+    await test.step('Given Albert is signed out, on an iPad Mini', async () => {
       // Fresh context — nothing to do.
     })
     await test.step('When Albert signs in with his email and password', async () => {
@@ -40,22 +54,24 @@ test.describe('Feature: Three actors sign in with email', () => {
       await expect(page.getByTestId('tab-panel-profile')).toContainText(ALBERT.email)
       await expect(page.getByAltText('User avatar')).toHaveAttribute('src', /albert\.svg/)
     })
+
+    await ctx.close()
   })
 
   test('@e2e Beth signs in at the same time as Albert', async ({ browser }, testInfo) => {
     const { ALBERT, BETH } = requireActorCredentials(testInfo, 'ALBERT', 'BETH')
 
-    const albertCtx = await browser.newContext()
-    const bethCtx    = await browser.newContext()
+    const albertCtx = await browser.newContext({ ...ACTOR_DEVICES.albert })
+    const bethCtx    = await browser.newContext({ ...ACTOR_DEVICES.beth })
     const albert = await albertCtx.newPage()
     const beth   = await bethCtx.newPage()
 
-    await test.step('Given Albert is already signed in', async () => {
+    await test.step('Given Albert (iPad Mini) is already signed in', async () => {
       await signInAs(albert, ALBERT)
       await albert.goto('/')
       await expect(albert.getByTestId('app-shell')).toBeVisible()
     })
-    await test.step('When Beth signs in with her email and password', async () => {
+    await test.step('When Beth (iPhone SE) signs in with her email and password', async () => {
       await signInAs(beth, BETH)
       await beth.goto('/')
     })
@@ -75,13 +91,13 @@ test.describe('Feature: Three actors sign in with email', () => {
     await Promise.all([albertCtx.close(), bethCtx.close()])
   })
 
-  test('@e2e @smoke all three actors are signed in simultaneously, side by side', async ({ browser }, testInfo) => {
+  test('@e2e @smoke all three actors are signed in simultaneously, cross-device, side by side', async ({ browser }, testInfo) => {
     const { ALBERT, BETH, CAROL } = requireActorCredentials(testInfo, 'ALBERT', 'BETH', 'CAROL')
 
     const contexts = {
-      albert: await browser.newContext(),
-      beth:   await browser.newContext(),
-      carol:  await browser.newContext(),
+      albert: await browser.newContext({ ...ACTOR_DEVICES.albert }),  // iPad Mini
+      beth:   await browser.newContext({ ...ACTOR_DEVICES.beth }),    // iPhone SE
+      carol:  await browser.newContext({ ...ACTOR_DEVICES.carol }),   // Galaxy S9+
     }
     const pages = {
       albert: await contexts.albert.newPage(),
@@ -91,14 +107,14 @@ test.describe('Feature: Three actors sign in with email', () => {
     const creds = { albert: ALBERT, beth: BETH, carol: CAROL }
     const avatarFile = { albert: /albert\.svg/, beth: /beth\.svg/, carol: /carol\.svg/ }
 
-    await test.step('When Albert, Beth, and Carol each sign in with email and password', async () => {
+    await test.step('When Albert (iPad Mini), Beth (iPhone SE), and Carol (Galaxy S9+) each sign in with email and password', async () => {
       for (const name of ['albert', 'beth', 'carol'] as const) {
         await signInAs(pages[name], creds[name])
       }
       await Promise.all(Object.values(pages).map(p => p.goto('/')))
     })
 
-    await test.step('Then all three see the app shell at the same time', async () => {
+    await test.step('Then all three see the app shell at the same time, on their own device', async () => {
       await Promise.all(
         Object.values(pages).map(p => expect(p.getByTestId('app-shell')).toBeVisible()),
       )
@@ -113,11 +129,11 @@ test.describe('Feature: Three actors sign in with email', () => {
       }
     })
 
-    await test.step('And a screenshot is captured of all three side by side as proof', async () => {
+    await test.step('And a screenshot is captured of all three side by side as proof — one reviewed result, three devices', async () => {
       await Promise.all([
-        pages.albert.screenshot({ path: 'test-results/three-actors-01-albert.png', fullPage: true }),
-        pages.beth.screenshot({ path: 'test-results/three-actors-01-beth.png', fullPage: true }),
-        pages.carol.screenshot({ path: 'test-results/three-actors-01-carol.png', fullPage: true }),
+        pages.albert.screenshot({ path: 'review/artifacts/three-actors-01-albert.png', fullPage: true }),
+        pages.beth.screenshot({ path: 'review/artifacts/three-actors-01-beth.png', fullPage: true }),
+        pages.carol.screenshot({ path: 'review/artifacts/three-actors-01-carol.png', fullPage: true }),
       ])
       // Also registered as Playwright snapshots so the visual gate can diff them.
       await expect(pages.albert).toHaveScreenshot('three-actors-albert.png', { fullPage: true })

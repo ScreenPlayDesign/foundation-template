@@ -32,14 +32,17 @@ whenever a new project is provisioned.
 
 ## The starter screenplay
 
-This template ships with a three-actor cast — Albert, Beth, and Carol
-(`screenplay/personae/`), each with a distinctive avatar
-(`public/avatars/`) — and one scene proving they can each sign in and be
-told apart: their own name, their own avatar, their own data
-(`screenplay/features/three-actors-sign-in.feature`). Rename or replace
-them once you know who your real users are; keep the multi-actor pattern.
-Run `spd screenplay check` to validate the folder still conforms to
-convention after you do.
+This template ships with a three-actor cast — `albert-ipad-mini`,
+`beth-iphone-se`, `carol-android-galaxy` (`screenplay/personae/`), each
+with a distinctive avatar (`public/avatars/`) and pinned to a different
+device — and one scene proving they can each sign in and be told apart:
+their own name, their own avatar, their own data
+(`screenplay/features/three-actors-sign-in.feature`). Deliberately
+minimal on purpose: no backstory, no demographics, just a name, a device,
+and a login — a device/browser coverage mechanism, not a UX exercise.
+Rename or replace them once you know who your real users are; keep the
+multi-actor, multi-device pattern. Run `spd screenplay check` to validate
+the folder still conforms to convention after you do.
 
 Sign-in is email + password by default — zero external setup, works the
 moment `supabase start` is running:

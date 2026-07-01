@@ -22,15 +22,17 @@ not nested here — it's generated build output, not authored content.
 
 ## FACADE — start here, then replace it
 
-`personae/albert.md`, `beth.md`, and `carol.md` are three
-placeholder actors, each with a distinctive avatar (`public/avatars/`),
-who exist for exactly one reason: to prove, on day one, that three
-simultaneous users can each sign in and the app tells them apart — their
-own name, their own avatar, their own data. `screenplay/features/
-three-actors-sign-in.feature` is the scene that proves it, and
-`screenplay/tests/specs/three-actors-sign-in.spec.ts` is the
-Playwright implementation — three real browser contexts, three real
-identities, side-by-side screenshots.
+`personae/albert.md`, `beth.md`, and `carol.md` are three placeholder
+actors, deliberately minimal: a name, a device, an avatar, a way to log
+in. No backstory, no demographics — they're a device/browser coverage
+mechanism, not a UX exercise. Albert is `albert-ipad-mini` (iPad Mini),
+Beth is `beth-iphone-se` (iPhone SE), Carol is `carol-android-galaxy`
+(Galaxy S9+) — three different viewports, so cross-device coverage comes
+free with the same scene that proves cross-user isolation.
+`screenplay/features/three-actors-sign-in.feature` is the scene that
+proves it, and `screenplay/tests/specs/three-actors-sign-in.spec.ts` is
+the Playwright implementation — three real browser contexts, three real
+devices, one reviewed result.
 
 Run `bun run seed:actors` once against local Supabase to create the three
 accounts (email + password — zero external setup), then `bun run dev` and
@@ -56,7 +58,10 @@ doesn't show up in Albert's view, or that the app behaves correctly when
 three real people are using it at the same time — which is the normal
 case for almost any app, not an edge case. Starting with three actors
 from day one means every scene you add afterward inherits that habit
-instead of bolting it on later. That said: reserve multi-actor scenes for
+instead of bolting it on later. Pinning each actor to a different device
+(iPad Mini, iPhone SE, Galaxy S9+) means you also get cross-device
+coverage for free, without a separate device-matrix test suite to
+maintain. That said: reserve multi-actor scenes for
 things that actually need them (concurrency, cross-user isolation).
 Single-actor scenes are correct and cheaper for most features.
 
