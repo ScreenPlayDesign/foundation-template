@@ -1,30 +1,31 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# docker-compose.yml — SPD project dev stack
+# docker-compose.yml — Playwright-only fixture stack. NOT the dev workflow.
+#
+# For actual development, use `spd dev` (or `make dev`, which just calls it) —
+# it runs inside the project's own spd-managed container (Dockerfile.project),
+# with agency credentials baked in, orchestrated by spd-admin. That's the one
+# real way this project runs in Docker day to day.
+#
+# This file exists for exactly one thing: giving Playwright something to test
+# against (`app`) without needing SPD platform/agency credentials at all —
+# useful for CI runners or anyone who wants to run the Playwright suite without
+# going through spd-admin. `app` here builds from the plain `Dockerfile`
+# (credential-free, generic bun+vite build), deliberately NOT Dockerfile.project.
+# It used to also be reachable as a second "dev mode" via `--profile dev` —
+# that's gone now: it bypassed spd's container-only enforcement
+# (scripts/require-container.ts) entirely, since docker-compose never told it
+# it was inside a container, and it competed with `spd dev` for the same
+# port. One way to run dev, one way to run Playwright-without-spd.
 #
 # Prerequisites:
-#   Run `make setup` once before first use. This starts the local Supabase
-#   stack via the supabase CLI (`supabase start`) and applies migrations.
-#   The supabase CLI manages the Supabase containers independently — this file
-#   only manages the app dev server and the Playwright runner.
-#
-# ── Three-database model ─────────────────────────────────────────────────────
-#
-#   local    →  Supabase stack managed by the supabase CLI (supabase start)
-#   staging  →  <staging-ref>.supabase.co  (cloud; for dress-rehearsal reviews)
-#   prod     →  <prod-ref>.supabase.co     (CI-only; never run locally)
-#
-# ── Profiles ─────────────────────────────────────────────────────────────────
-#
-#   (no profile)  →  nothing
-#   --profile dev →  Vite HMR dev server
-#   --profile pw  →  all of the above + Playwright runner
+#   `supabase start` (or `spd db up`) before `docker compose --profile pw up` —
+#   the supabase CLI manages the Supabase containers independently; this file
+#   never touches them.
 #
 # ── Usage ────────────────────────────────────────────────────────────────────
 #
-#   make dev                                      # ensure supabase running + Vite HMR
-#   docker compose --profile dev up               # just the Vite dev server
 #   docker compose --profile pw run playwright    # run Playwright scenes
-#   docker compose down                           # tear down (supabase managed by CLI)
+#   docker compose --profile pw down              # tear down
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -44,8 +45,12 @@ x-host-gateway: &host-gateway
 
 services:
 
-  # ── App dev server ────────────────────────────────────────────────────────
-  # Vite HMR. Source is bind-mounted so edits on the host reflect instantly.
+  # ── App, for Playwright to test against ──────────────────────────────────
+  # NOT the dev workflow — see the file header. Only ever started as a
+  # dependency of the playwright service below (profile: pw only, no
+  # standalone "dev" profile). SPD_INSIDE_CONTAINER=1 so
+  # scripts/require-container.ts's predev guard doesn't refuse to start it —
+  # this genuinely is a container, just not the spd-managed one.
   app:
     build:
       context:    .
@@ -60,8 +65,9 @@ services:
     environment:
       <<: *local-supabase
       NODE_ENV: development
+      SPD_INSIDE_CONTAINER: "1"
     <<: *host-gateway
-    profiles: ["dev", "pw"]
+    profiles: ["pw"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5173"]

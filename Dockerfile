@@ -1,9 +1,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Dockerfile — SPD project container
+# Dockerfile — Playwright-fixture build. NOT the dev container — that's
+# Dockerfile.project (agency-credentialed, spd-managed, used by `spd dev`).
+# This one is generic and credential-free on purpose: docker-compose.yml's
+# `app` service builds from it solely so Playwright has something to test
+# against without needing SPD platform/agency access. See docker-compose.yml's
+# header for the full explanation of why there are two Dockerfiles.
 #
 # Three stages:
 #   base   — bun runtime + installed dependencies (shared cache layer)
-#   dev    — Vite HMR dev server (docker-compose --profile dev uses this)
+#   dev    — Vite HMR dev server (docker-compose.yml's `app` service, pw profile)
 #   build  — production Vite build (outputs /app/dist for CI or preview)
 #
 # docker-compose.yml selects the dev stage via `target: dev`.

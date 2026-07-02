@@ -60,29 +60,29 @@ help:
 # DEV LIFECYCLE
 # ══════════════════════════════════════════════════════════════════════════════
 
-dev: ## Start local Vite HMR dev server (runs `supabase start` first if not already up)
-	@supabase status >/dev/null 2>&1 || (printf "  Starting local Supabase...\n" && supabase start)
-	$(COMPOSE) --profile dev up
+dev: ## Start the dev server — inside the project's Docker container, via spd
+	$(SPD) dev
 
-dev.d: ## Start full local stack in background (detached)
-	$(COMPOSE) --profile dev up -d
+dev.d: ## Same, detached — start the project container without attaching
+	$(SPD) container project start $(shell basename $(CURDIR))
 
-stop: ## Stop and remove all containers (data volumes preserved)
-	$(COMPOSE) --profile dev --profile pw down
+stop: ## Stop the project container (docker-compose's pw/Playwright stack too, if up)
+	$(SPD) container project stop $(shell basename $(CURDIR))
+	$(COMPOSE) --profile pw down
 
-stop.clean: ## Stop and WIPE all volumes — fresh DB next start
-	$(COMPOSE) --profile dev --profile pw down -v
+stop.clean: ## Stop + WIPE the Playwright compose stack's volumes (project container has none)
+	$(COMPOSE) --profile pw down -v
 
 restart: stop dev ## Full stop + start
 
-logs: ## Tail logs from all running containers (muxed)
-	$(COMPOSE) --profile dev logs -f
+logs: ## Tail the project container's logs
+	$(SPD) logs dev
 
 logs.app: ## Tail the Vite dev server only
 	$(SPD) logs dev
 
 logs.db: ## Tail local Supabase logs
-	$(COMPOSE) --profile dev logs -f supabase-db supabase-kong
+	supabase status >/dev/null 2>&1 && supabase logs || echo "local Supabase isn't running — spd db up"
 
 logs.pw: ## Tail last Playwright run output
 	$(SPD) logs playwright
